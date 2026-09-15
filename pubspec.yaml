@@ -10,6 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.2
+  firebase_core: ^3.6.0
+  cloud_firestore: ^5.4.3     
+  firebase_auth: ^5.3.1       
+  firebase_storage: ^12.3.2   
+  image_picker: ^1.1.2
+  firebase_analytics: ^12.6.0
+  flutter_speed_dial: ^7.0.0
 
 dev_dependencies:
   flutter_test:
