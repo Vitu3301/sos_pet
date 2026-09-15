@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 1. Importando o pacote de Autenticação
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -9,28 +10,78 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // 1. Chave do Formulário (usada para validar os campos)
   final _formKey = GlobalKey<FormState>();
-
-  // 2. Controladores (eles "capturam" o que o usuário digita)
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
-  // 3. Variável de Estado (define se a tela é de Login ou Cadastro)
   bool _isLogin = true;
+  bool _isLoading =
+      false; // Variável para mostrar um ícone de "carregando" enquanto o Firebase processa
 
-  // Função que será chamada ao clicar no botão principal
-  // Não esqueça de importar a tela nova no topo do auth_screen.dart:
-  // import 'package:seu_projeto/screens/home_screen.dart';
+  // Função que envia os dados para o Firebase
+  void _submit() async {
+    // 1. Valida se os campos estão corretos
+    if (!_formKey.currentState!.validate()) return;
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      // Quando clicar em Entrar/Cadastrar e não tiver erro,
-      // ele pula para a tela principal (HomeScreen)
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text.trim();
+
+    // Ativa o "carregando" e redesenha a tela
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (_isLogin) {
+        // --- FLUXO DE LOGIN ---
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: senha,
+        );
+      } else {
+        // --- FLUXO DE CADASTRO ---
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: senha,
+        );
+      }
+
+      // Se der certo, navega para a tela principal e remove a tela de login do histórico
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
+    } on FirebaseAuthException catch (error) {
+      // Tratamento de Erros do Firebase (ex: senha fraca, e-mail já cadastrado, senha incorreta)
+      String mensagemErro = 'Ocorreu um erro. Verifique seus dados.';
+
+      if (error.code == 'user-not-found') {
+        mensagemErro = 'Nenhum usuário encontrado com este e-mail.';
+      } else if (error.code == 'wrong-password') {
+        mensagemErro = 'Senha incorreta.';
+      } else if (error.code == 'email-already-in-use') {
+        mensagemErro = 'Este e-mail já está cadastrado.';
+      } else if (error.code == 'weak-password') {
+        mensagemErro = 'A senha é muito fraca (mínimo de 6 caracteres).';
+      }
+
+      // Mostra o erro na tela usando um SnackBar (aviso na parte inferior)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagemErro),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (error) {
+      print(error);
+    } finally {
+      // Desliga o "carregando" independentemente de dar certo ou errado
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -42,27 +93,18 @@ class _AuthScreenState extends State<AuthScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
-            key: _formKey, // Conectando a chave ao formulário
+            key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Ícone ou Logo do App
-                const Icon(
-                  Icons.pets,
-                  size: 100,
-                  color: Colors.orange,
-                ),
+                const Icon(Icons.pets, size: 100, color: Colors.orange),
                 const SizedBox(height: 32),
-
-                // Título dinâmico (muda dependendo se é login ou cadastro)
                 Text(
                   _isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
 
@@ -89,7 +131,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 // Campo de Senha
                 TextFormField(
                   controller: _senhaController,
-                  obscureText: true, // Esconde a senha com "bolinhas"
+                  obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Senha',
                     border: OutlineInputBorder(),
@@ -104,24 +146,27 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Botão Principal (Entrar ou Cadastrar)
-                ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: Text(
-                    _isLogin ? 'ENTRAR' : 'CADASTRAR',
-                    style: const TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                ),
+                // Botão Principal com indicador de carregamento
+                _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.orange))
+                    : ElevatedButton(
+                        onPressed: _submit,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.orange,
+                        ),
+                        child: Text(
+                          _isLogin ? 'ENTRAR' : 'CADASTRAR',
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.white),
+                        ),
+                      ),
                 const SizedBox(height: 16),
 
                 // Botão para alternar entre Login e Cadastro
                 TextButton(
                   onPressed: () {
-                    // O setState reconstrói a tela com a nova variável
                     setState(() {
                       _isLogin = !_isLogin;
                     });
