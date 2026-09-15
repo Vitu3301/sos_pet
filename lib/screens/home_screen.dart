@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'pet_form_add.dart';
+import 'dart:io';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -8,7 +11,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // DADOS FALSOS (Mock) - Para visualizar a interface antes do Firebase
+  // DADOS FALSOS (Mock)
   final List<Map<String, dynamic>> _petsMock = [
     {
       'nome': 'Rex',
@@ -31,76 +34,127 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          Colors.grey[100], // Fundo levemente cinza para destacar os cards
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text('SOS Pet',
             style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.orange,
         actions: [
-          // Botão de Sair (Logout)
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              // Futuramente aqui chamaremos o FirebaseAuth para deslogar
-              Navigator.pop(context); // Volta para a tela de login por enquanto
+              Navigator.pop(context);
             },
           )
         ],
       ),
-
-      // O ListView.builder é a melhor forma de criar listas no Flutter
       body: ListView.builder(
         padding: const EdgeInsets.all(12.0),
-        itemCount: _petsMock.length, // Quantidade de itens na nossa lista falsa
+        itemCount: _petsMock.length,
         itemBuilder: (context, index) {
           final pet = _petsMock[index];
-          return _buildPetCard(pet); // Chama a função que desenha o card
+          return _buildPetCard(pet);
         },
       ),
 
-      // Botão Flutuante (Floating Action Button) - O "Create" do CRUD
-      floatingActionButton: FloatingActionButton(
+      // BOTÃO EXPANSÍVEL (SpeedDial)
+      floatingActionButton: SpeedDial(
+        icon: Icons.add,
+        activeIcon: Icons.close,
         backgroundColor: Colors.orange,
-        onPressed: () {
-          // Futuramente: Navigator.push para a tela pet_form_screen
-          print("Navegar para a tela de cadastrar pet");
-        },
-        child: const Icon(Icons.add, color: Colors.white),
+        foregroundColor: Colors.white,
+        activeBackgroundColor: Colors.red,
+        activeForegroundColor: Colors.white,
+        spacing: 10,
+        spaceBetweenChildren: 8,
+        children: [
+          // 1. Cadastrar
+          SpeedDialChild(
+            child: const Icon(Icons.add),
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            label: 'Cadastrar Animal',
+            labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+            onTap: () async {
+              // Navega para a tela de formulário e ESPERA o resultado voltar
+              final novoPet = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PetFormScreen()),
+              );
+
+              // Se retornou um pet (o usuário não cancelou/voltou pelo botão de voltar)
+              if (novoPet != null) {
+                setState(() {
+                  _petsMock.add(novoPet); // Adiciona na lista
+                });
+
+                // Exibe uma mensagem de sucesso na parte inferior da tela
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content:
+                            Text('${novoPet['nome']} cadastrado com sucesso!')),
+                  );
+                }
+              }
+            },
+          ),
+          // 2. Editar
+          SpeedDialChild(
+            child: const Icon(Icons.edit),
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            label: 'Editar Animal',
+            labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+            onTap: () {
+              _showEditPetDialog(context);
+            },
+          ),
+          // 3. Remover
+          SpeedDialChild(
+            child: const Icon(Icons.delete),
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            label: 'Remover Animal',
+            labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+            onTap: () {
+              _showRemovePetDialog(context);
+            },
+          ),
+        ],
       ),
     );
   }
 
-  // --- WIDGET PERSONALIZADO PARA O CARD ---
-  // Separar isso do "build" principal deixa o código muito mais organizado e fácil de ler
   Widget _buildPetCard(Map<String, dynamic> pet) {
-    // Regra visual: Vermelho para perdido, Verde para adoção
     Color statusColor = pet['status'] == 'Perdido' ? Colors.red : Colors.green;
 
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip
-          .antiAlias, // Corta a imagem para respeitar as bordas arredondadas do card
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Foto do Pet usando imagem da internet
-          Image.network(
-            pet['foto'],
-            height: 200,
-            width: double.infinity,
-            fit: BoxFit.cover, // Preenche todo o espaço sem distorcer
-          ),
-
-          // 2. Área de Texto
+          pet['foto'].toString().startsWith('http')
+              ? Image.network(
+                  pet['foto'],
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                )
+              : Image.file(
+                  File(pet['foto']),
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Coluna com Nome e Raça/Local
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -118,8 +172,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-
-                // Etiqueta de Status (Perdido/Adoção)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -141,6 +193,130 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Função do popup de remoção que criamos anteriormente
+  void _showRemovePetDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Selecione um animal para remover'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _petsMock.length,
+              itemBuilder: (context, index) {
+                final pet = _petsMock[index];
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: NetworkImage(pet['foto']),
+                  ),
+                  title: Text(pet['nome'],
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(pet['raca']),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () {
+                      // Remove o item da lista Mock atualizando a tela
+                      setState(() {
+                        _petsMock.removeAt(index);
+                      });
+
+                      Navigator.of(context).pop();
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('${pet['nome']} removido com sucesso!')),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Função para exibir o Popup de edição
+  void _showEditPetDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Selecione um animal para editar'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _petsMock.length,
+              itemBuilder: (context, index) {
+                final pet = _petsMock[index];
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: pet['foto'].toString().startsWith('http')
+                        ? NetworkImage(pet['foto']) as ImageProvider
+                        : FileImage(File(pet['foto'])),
+                  ),
+                  title: Text(pet['nome'],
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(pet['raca']),
+                  trailing: const Icon(Icons.edit, color: Colors.blue),
+                  onTap: () async {
+                    // 1. Fecha o popup de seleção
+                    Navigator.of(dialogContext).pop();
+
+                    // 2. Abre a tela de formulário passando os dados do pet selecionado
+                    final petEditado = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PetFormScreen(petParaEditar: pet),
+                      ),
+                    );
+
+                    // 3. Se o usuário salvou e voltou com dados novos, atualiza a lista!
+                    if (petEditado != null) {
+                      setState(() {
+                        _petsMock[index] =
+                            petEditado; // Substitui o pet antigo pelo novo na mesma posição
+                      });
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                '${petEditado['nome']} atualizado com sucesso!')),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
