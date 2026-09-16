@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SOS Pet',
       theme: ThemeData(primarySwatch: Colors.orange),
-      home: const AuthScreen(), // <-- AQUI! Trocamos para a sua tela
+      home: const AuthScreen(),
     );
   }
 }

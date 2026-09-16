@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PetFormScreen extends StatefulWidget {
-  // Variável opcional. Se for nula, é cadastro novo. Se tiver dados, é edição!
   final Map<String, dynamic>? petParaEditar;
 
   const PetFormScreen({super.key, this.petParaEditar});
@@ -19,14 +19,13 @@ class _PetFormScreenState extends State<PetFormScreen> {
   final _racaController = TextEditingController();
   final _localController = TextEditingController();
 
-  File? _imagemSelecionada;
+  String? _caminhoImagemNova;
   String _statusSelecionado = 'Perdido';
-  String? _imagemAntiga; // Para guardar a URL ou caminho caso seja edição
+  String? _imagemAntiga;
 
   @override
   void initState() {
     super.initState();
-    // Se recebemos um animal para editar, preenchemos os campos
     if (widget.petParaEditar != null) {
       _nomeController.text = widget.petParaEditar!['nome'];
       _racaController.text = widget.petParaEditar!['raca'];
@@ -42,14 +41,14 @@ class _PetFormScreenState extends State<PetFormScreen> {
 
     if (pickedFile != null) {
       setState(() {
-        _imagemSelecionada = File(pickedFile.path);
+        _caminhoImagemNova = pickedFile.path;
       });
     }
   }
 
   void _salvarFormulario() {
     if (_formKey.currentState!.validate()) {
-      if (_imagemSelecionada == null && _imagemAntiga == null) {
+      if (_caminhoImagemNova == null && _imagemAntiga == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Por favor, selecione uma foto!')),
         );
@@ -61,10 +60,8 @@ class _PetFormScreenState extends State<PetFormScreen> {
         'raca': _racaController.text,
         'local': _localController.text,
         'status': _statusSelecionado,
-        // Se escolheu imagem nova, usa ela. Se não, mantém a antiga.
-        'foto': _imagemSelecionada != null
-            ? _imagemSelecionada!.path
-            : _imagemAntiga,
+        'foto':
+            _caminhoImagemNova != null ? _caminhoImagemNova! : _imagemAntiga,
       };
 
       Navigator.pop(context, petAtualizado);
@@ -73,7 +70,6 @@ class _PetFormScreenState extends State<PetFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Muda o título dependendo se é cadastro ou edição
     final bool isEdicao = widget.petParaEditar != null;
 
     return Scaffold(
@@ -159,16 +155,18 @@ class _PetFormScreenState extends State<PetFormScreen> {
     );
   }
 
-  // Função auxiliar para desenhar a imagem correta (nova, antiga URL, antiga arquivo, ou vazia)
   Widget _construirImagem() {
-    if (_imagemSelecionada != null) {
+    if (_caminhoImagemNova != null) {
       return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.file(_imagemSelecionada!, fit: BoxFit.cover));
+        borderRadius: BorderRadius.circular(10),
+        child: kIsWeb
+            ? Image.network(_caminhoImagemNova!, fit: BoxFit.cover)
+            : Image.file(File(_caminhoImagemNova!), fit: BoxFit.cover),
+      );
     } else if (_imagemAntiga != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: _imagemAntiga!.startsWith('http')
+        child: kIsWeb || _imagemAntiga!.startsWith('http')
             ? Image.network(_imagemAntiga!, fit: BoxFit.cover)
             : Image.file(File(_imagemAntiga!), fit: BoxFit.cover),
       );

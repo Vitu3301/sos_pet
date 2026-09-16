@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'pet_form_add.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -137,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pet['foto'].toString().startsWith('http')
+          kIsWeb || pet['foto'].toString().startsWith('http')
               ? Image.network(
                   pet['foto'],
                   height: 200,
@@ -270,9 +271,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundImage: pet['foto'].toString().startsWith('http')
-                        ? NetworkImage(pet['foto']) as ImageProvider
-                        : FileImage(File(pet['foto'])),
+                    backgroundImage:
+                        kIsWeb || pet['foto'].toString().startsWith('http')
+                            ? NetworkImage(pet['foto']) as ImageProvider
+                            : FileImage(File(pet['foto'])),
                   ),
                   title: Text(pet['nome'],
                       style: const TextStyle(fontWeight: FontWeight.bold)),
