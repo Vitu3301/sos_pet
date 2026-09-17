@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:sos_pet/screens/auth_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // Importa o arquivo que você acabou de gerar
+import 'screens/auth_screen.dart';
 
-void main() {
+void main() async {
+  // Garante a inicialização correta dos widgets do Flutter
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa o Firebase usando as configurações da plataforma atual (Web, Android, etc.)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
