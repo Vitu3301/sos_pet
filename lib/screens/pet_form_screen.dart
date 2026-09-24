@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PetFormScreen extends StatefulWidget {
-  // Variável opcional. Se for nula, é cadastro novo. Se tiver dados, é edição!
   final Map<String, dynamic>? petParaEditar;
 
   const PetFormScreen({super.key, this.petParaEditar});
@@ -21,18 +21,18 @@ class _PetFormScreenState extends State<PetFormScreen> {
   final _localController = TextEditingController();
 
   String _statusSelecionado = 'Perdido';
-  String? _caminhoImagemNova; // Para guardar a foto nova escolhida
-  String? _imagemAntiga; // Para guardar a URL ou caminho caso seja edição
+  
+  XFile? _arquivoImagemNova; 
+  String? _imagemAntiga; 
 
   @override
   void initState() {
     super.initState();
-    // Se recebemos um animal para editar, preenchemos os campos
     if (widget.petParaEditar != null) {
-      _nomeController.text = widget.petParaEditar!['nome'];
-      _racaController.text = widget.petParaEditar!['raca'];
-      _localController.text = widget.petParaEditar!['local'];
-      _statusSelecionado = widget.petParaEditar!['status'];
+      _nomeController.text = widget.petParaEditar!['nome'] ?? '';
+      _racaController.text = widget.petParaEditar!['raca'] ?? '';
+      _localController.text = widget.petParaEditar!['local'] ?? '';
+      _statusSelecionado = widget.petParaEditar!['status'] ?? 'Perdido';
       _imagemAntiga = widget.petParaEditar!['foto'];
     }
   }
@@ -43,37 +43,76 @@ class _PetFormScreenState extends State<PetFormScreen> {
 
     if (pickedFile != null) {
       setState(() {
-        _caminhoImagemNova = pickedFile.path; // Salva só o caminho/URL
+        _arquivoImagemNova = pickedFile;
       });
     }
   }
 
-  void _salvarFormulario() {
+  Future<void> _salvarFormulario() async {
     if (_formKey.currentState!.validate()) {
-      if (_caminhoImagemNova == null && _imagemAntiga == null) {
+      if (_arquivoImagemNova == null && _imagemAntiga == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Por favor, selecione uma foto!')),
         );
         return;
       }
 
-      final petAtualizado = {
-        'nome': _nomeController.text,
-        'raca': _racaController.text,
-        'local': _localController.text,
-        'status': _statusSelecionado,
-        // Usa a imagem nova se tiver, senão usa a antiga
-        'foto':
-            _caminhoImagemNova != null ? _caminhoImagemNova! : _imagemAntiga,
-      };
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) => const Center(child: CircularProgressIndicator(color: Colors.orange)),
+      );
 
-      Navigator.pop(context, petAtualizado);
+      try {
+        // Guarda apenas o caminho local ou o antigo
+        String caminhoImagemParaSalvar = _imagemAntiga ?? '';
+
+        if (_arquivoImagemNova != null) {
+          caminhoImagemParaSalvar = _arquivoImagemNova!.path; // Caminho local do dispositivo
+        }
+
+        final petData = {
+          'nome': _nomeController.text,
+          'raca': _racaController.text,
+          'local': _localController.text,
+          'status': _statusSelecionado,
+          'foto': caminhoImagemParaSalvar, // Guarda o texto do caminho no Firestore
+          'dataAtualizacao': FieldValue.serverTimestamp(),
+        };
+
+        final firestore = FirebaseFirestore.instance;
+
+        if (widget.petParaEditar != null && widget.petParaEditar!.containsKey('id')) {
+          final String docId = widget.petParaEditar!['id'];
+          await firestore.collection('pets').doc(docId).update(petData);
+        } else {
+          await firestore.collection('pets').add(petData);
+        }
+
+        // Fecha o carregamento de forma segura
+        if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        
+        // Volta ao ecrã anterior com indicação de sucesso
+        if (mounted) Navigator.pop(context, true); 
+
+      } catch (e) {
+        print("====== ERRO AO GUARDAR NO FIRESTORE ======");
+        print(e.toString());
+        print("==========================================");
+
+        if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao guardar animal: $e')),
+          );
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Muda o título dependendo se é cadastro ou edição
     final bool isEdicao = widget.petParaEditar != null;
 
     return Scaffold(
@@ -128,7 +167,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _statusSelecionado,
+                initialValue: _statusSelecionado,
                 decoration: const InputDecoration(
                     labelText: 'Status', border: OutlineInputBorder()),
                 items: ['Perdido', 'Para Adoção'].map((String status) {
@@ -159,14 +198,13 @@ class _PetFormScreenState extends State<PetFormScreen> {
     );
   }
 
-  // Função auxiliar para desenhar a imagem correta compatível com Web e Celular
   Widget _construirImagem() {
-    if (_caminhoImagemNova != null) {
+    if (_arquivoImagemNova != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: kIsWeb
-            ? Image.network(_caminhoImagemNova!, fit: BoxFit.cover)
-            : Image.file(File(_caminhoImagemNova!), fit: BoxFit.cover),
+            ? Image.network(_arquivoImagemNova!.path, fit: BoxFit.cover)
+            : Image.file(File(_arquivoImagemNova!.path), fit: BoxFit.cover),
       );
     } else if (_imagemAntiga != null) {
       return ClipRRect(
