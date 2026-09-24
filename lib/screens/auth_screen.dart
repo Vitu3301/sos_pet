@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -16,7 +17,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
-  // NOVOS controladores para o Cadastro
+  // Controladores para o Cadastro
   final _nomeController = TextEditingController();
   final _telefoneController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
@@ -27,7 +28,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    // É uma boa prática limpar os controladores da memória ao fechar a tela
     _emailController.dispose();
     _senhaController.dispose();
     _nomeController.dispose();
@@ -76,11 +76,19 @@ class _AuthScreenState extends State<AuthScreen> {
           password: senha,
         );
 
-        // Salva o nome do usuário no perfil do Firebase Auth
+        // 1. Salva o nome no perfil do Firebase Auth
         await credencial.user!.updateDisplayName(_nomeController.text.trim());
 
-        // DICA: O telefone (_telefoneController.text) e outros dados extras
-        // geralmente são salvos no banco de dados (Firestore) nesta etapa!
+        // 2. SALVA OS DADOS EXTRAS NO CLOUD FIRESTORE
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(credencial.user!.uid) // Usa o UID do Auth como ID do documento
+            .set({
+          'nome': _nomeController.text.trim(),
+          'telefone': _telefoneController.text.trim(),
+          'email': email,
+          'criadoEm': Timestamp.now(),
+        });
       }
 
       // Se der certo, navega para a tela principal e remove a tela de login do histórico
@@ -124,7 +132,6 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        // ConstrainedBox limita a largura para a tela não ficar gigante no PC (Web)
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
           child: SingleChildScrollView(
@@ -145,9 +152,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- CAMPOS EXCLUSIVOS DE CADASTRO (Aparecem no topo) ---
+                  // --- CAMPOS EXCLUSIVOS DE CADASTRO ---
                   if (!_isLogin) ...[
-                    // Campo de Nome
                     TextFormField(
                       controller: _nomeController,
                       decoration: const InputDecoration(
@@ -161,8 +167,6 @@ class _AuthScreenState extends State<AuthScreen> {
                               : null,
                     ),
                     const SizedBox(height: 16),
-
-                    // Campo de Telefone/WhatsApp
                     TextFormField(
                       controller: _telefoneController,
                       keyboardType: TextInputType.phone,
@@ -179,9 +183,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // --- CAMPOS PADRÃO (Sempre visíveis) ---
-
-                  // Campo de E-mail
+                  // --- CAMPOS PADRÃO ---
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -200,8 +202,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // Campo de Senha
                   TextFormField(
                     controller: _senhaController,
                     obscureText: true,
@@ -221,7 +221,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   // --- CAMPOS EXCLUSIVOS DE CADASTRO (Parte inferior) ---
                   if (!_isLogin) ...[
-                    // Campo de Confirmar Senha
                     TextFormField(
                       controller: _confirmarSenhaController,
                       obscureText: true,
@@ -238,8 +237,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       },
                     ),
                     const SizedBox(height: 8),
-
-                    // Checkbox de Termos de Uso
                     CheckboxListTile(
                       value: _aceitouTermos,
                       onChanged: (bool? value) {
@@ -280,9 +277,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        _isLogin = !_isLogin; // Inverte a tela
-                        _formKey.currentState
-                            ?.reset(); // Limpa os erros de validação
+                        _isLogin = !_isLogin;
+                        _formKey.currentState?.reset();
                       });
                     },
                     child: Text(
