@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'pet_form_screen.dart';
 
+import 'profile_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -40,6 +42,20 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.orange,
         actions: [
+<<<<<<< HEAD
+=======
+          IconButton(
+            tooltip: 'Meu perfil',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
+          ),
+          // Botão de Sair (Logout)
+>>>>>>> teste-telas
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => Navigator.pop(context),
@@ -207,6 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
+<<<<<<< HEAD
                 const Divider(
                     height:
                         30), // Uma linha subtil para separar a info dos botões
@@ -220,6 +237,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       label: const Text('Editar',
                           style: TextStyle(color: Colors.blue)),
                       onPressed: () => _editarPet(pet, index),
+=======
+                // Etiqueta de Status (Perdido/Adoção)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: statusColor),
+                  ),
+                  child: Text(
+                    pet['status'],
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+>>>>>>> teste-telas
                     ),
                     const SizedBox(width: 8),
                     TextButton.icon(
