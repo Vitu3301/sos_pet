@@ -1,11 +1,13 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
 
 class PetFormScreen extends StatefulWidget {
-  final Map<String, dynamic>? petParaEditar;
+  final PetModel? petParaEditar;
 
   const PetFormScreen({super.key, this.petParaEditar});
 
@@ -19,6 +21,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
   final _nomeController = TextEditingController();
   final _racaController = TextEditingController();
   final _localController = TextEditingController();
+  final _resumoController = TextEditingController();
 
   String _statusSelecionado = 'Perdido';
 
@@ -29,12 +32,22 @@ class _PetFormScreenState extends State<PetFormScreen> {
   void initState() {
     super.initState();
     if (widget.petParaEditar != null) {
-      _nomeController.text = widget.petParaEditar!['nome'] ?? '';
-      _racaController.text = widget.petParaEditar!['raca'] ?? '';
-      _localController.text = widget.petParaEditar!['local'] ?? '';
-      _statusSelecionado = widget.petParaEditar!['status'] ?? 'Perdido';
-      _imagemAntiga = widget.petParaEditar!['foto'];
+      _nomeController.text = widget.petParaEditar!.nome;
+      _racaController.text = widget.petParaEditar!.raca;
+      _localController.text = widget.petParaEditar!.local;
+      _resumoController.text = widget.petParaEditar!.resumo;
+      _statusSelecionado = widget.petParaEditar!.status;
+      _imagemAntiga = widget.petParaEditar!.foto;
     }
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _racaController.dispose();
+    _localController.dispose();
+    _resumoController.dispose();
+    super.dispose();
   }
 
   Future<void> _escolherImagem() async {
@@ -65,39 +78,53 @@ class _PetFormScreenState extends State<PetFormScreen> {
       );
 
       try {
-        // Guarda apenas o caminho local ou o antigo
         String caminhoImagemParaSalvar = _imagemAntiga ?? '';
 
         if (_arquivoImagemNova != null) {
-          caminhoImagemParaSalvar =
-              _arquivoImagemNova!.path; // Caminho local do dispositivo
+          final fileName = _arquivoImagemNova!.name.isNotEmpty
+              ? _arquivoImagemNova!.name
+              : 'pet_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('pets/${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+          if (kIsWeb) {
+            final bytes = await _arquivoImagemNova!.readAsBytes();
+            await storageRef.putData(bytes);
+          } else {
+            await storageRef.putFile(File(_arquivoImagemNova!.path));
+          }
+
+          caminhoImagemParaSalvar = await storageRef.getDownloadURL();
         }
 
-        final petData = {
-          'nome': _nomeController.text,
-          'raca': _racaController.text,
-          'local': _localController.text,
-          'status': _statusSelecionado,
-          'foto':
-              caminhoImagemParaSalvar, // Guarda o texto do caminho no Firestore
-          'dataAtualizacao': FieldValue.serverTimestamp(),
-        };
+        final petModel = PetModel(
+          id: widget.petParaEditar?.id,
+          nome: _nomeController.text,
+          raca: _racaController.text,
+          local: _localController.text,
+          status: _statusSelecionado,
+          foto: caminhoImagemParaSalvar,
+          resumo: _resumoController.text.trim(),
+          dataAtualizacao: DateTime.now(),
+        );
 
         final firestore = FirebaseFirestore.instance;
 
-        if (widget.petParaEditar != null &&
-            widget.petParaEditar!.containsKey('id')) {
-          final String docId = widget.petParaEditar!['id'];
-          await firestore.collection('pets').doc(docId).update(petData);
+        if (widget.petParaEditar != null && widget.petParaEditar!.id != null) {
+          final String docId = widget.petParaEditar!.id!;
+          await firestore
+              .collection('pets')
+              .doc(docId)
+              .update(petModel.toMap());
         } else {
-          await firestore.collection('pets').add(petData);
+          await firestore.collection('pets').add(petModel.toMap());
         }
 
-        // Fecha o carregamento de forma segura
         if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
-        // Volta ao ecrã anterior com indicação de sucesso
-        if (mounted) Navigator.pop(context, true);
+        if (mounted) Navigator.pop(context, petModel);
       } catch (e) {
         debugPrint('Erro ao guardar animal: $e');
 
@@ -117,9 +144,12 @@ class _PetFormScreenState extends State<PetFormScreen> {
     final bool isEdicao = widget.petParaEditar != null;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
         title: Text(isEdicao ? 'Editar Animal' : 'Cadastrar Animal'),
         backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -128,68 +158,162 @@ class _PetFormScreenState extends State<PetFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                isEdicao ? 'Atualize os dados' : 'Vamos conhecer esse pet',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Preencha as informações para ajudar a encontrar o caminho certo.',
+                style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+              ),
+              const SizedBox(height: 20),
               GestureDetector(
                 onTap: _escolherImagem,
-                child: Container(
-                  height: 200,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade400, width: 2),
-                  ),
-                  child: _construirImagem(),
+                child: Stack(
+                  children: [
+                    Container(
+                      height: 210,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _construirImagem(),
+                    ),
+                    Positioned(
+                      right: 12,
+                      bottom: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.edit_outlined,
+                          size: 20,
+                          color: Colors.deepOrange,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
+              const Text(
+                'Informações do pet',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _nomeController,
-                decoration: const InputDecoration(
-                    labelText: 'Nome do Animal', border: OutlineInputBorder()),
+                textCapitalization: TextCapitalization.words,
+                decoration: _decoracaoCampo(
+                  'Nome do animal',
+                  Icons.pets_outlined,
+                ),
                 validator: (value) =>
                     value == null || value.isEmpty ? 'Digite o nome' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _racaController,
-                decoration: const InputDecoration(
-                    labelText: 'Raça (ou SRD)', border: OutlineInputBorder()),
+                textCapitalization: TextCapitalization.words,
+                decoration: _decoracaoCampo(
+                  'Raça (ou SRD)',
+                  Icons.category_outlined,
+                ),
                 validator: (value) =>
                     value == null || value.isEmpty ? 'Digite a raça' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _localController,
-                decoration: const InputDecoration(
-                    labelText: 'Local (Ex: Centro, Recife)',
-                    border: OutlineInputBorder()),
+                textCapitalization: TextCapitalization.words,
+                decoration: _decoracaoCampo(
+                  'Local (ex.: Centro, Recife)',
+                  Icons.location_on_outlined,
+                ),
                 validator: (value) =>
                     value == null || value.isEmpty ? 'Digite o local' : null,
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _statusSelecionado,
-                decoration: const InputDecoration(
-                    labelText: 'Status', border: OutlineInputBorder()),
-                items: ['Perdido', 'Para Adoção'].map((String status) {
-                  return DropdownMenuItem<String>(
-                      value: status, child: Text(status));
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _statusSelecionado = newValue!;
-                  });
+              TextFormField(
+                controller: _resumoController,
+                maxLines: 4,
+                minLines: 3,
+                decoration: _decoracaoCampo(
+                  'Resumo sobre o pet',
+                  Icons.notes_rounded,
+                  alignLabelWithHint: true,
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Descreva o pet'
+                    : null,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Situação',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: 'Perdido',
+                    icon: Icon(Icons.search_rounded),
+                    label: Text('Perdido'),
+                  ),
+                  ButtonSegment(
+                    value: 'Para Adoção',
+                    icon: Icon(Icons.favorite_border_rounded),
+                    label: Text('Adoção'),
+                  ),
+                ],
+                selected: {_statusSelecionado},
+                onSelectionChanged: (selection) {
+                  setState(() => _statusSelecionado = selection.first);
                 },
               ),
               const SizedBox(height: 32),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
-                    padding: const EdgeInsets.symmetric(vertical: 16)),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    )),
                 onPressed: _salvarFormulario,
-                child: Text(
-                  isEdicao ? 'Salvar Alterações' : 'Salvar Animal',
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_rounded),
+                    const SizedBox(width: 8),
+                    Text(
+                      isEdicao ? 'Salvar alterações' : 'Cadastrar pet',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -218,12 +342,46 @@ class _PetFormScreenState extends State<PetFormScreen> {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.add_a_photo, size: 50, color: Colors.grey[600]),
-          const SizedBox(height: 8),
-          Text('Toque para escolher uma foto',
-              style: TextStyle(color: Colors.grey[600])),
+          const Icon(Icons.add_a_photo_outlined,
+              size: 38, color: Colors.orange),
+          const SizedBox(height: 10),
+          const Text(
+            'Adicionar foto do pet',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Toque aqui para escolher uma imagem',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
         ],
       );
     }
+  }
+
+  InputDecoration _decoracaoCampo(
+    String label,
+    IconData icon, {
+    bool alignLabelWithHint = false,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: Colors.orange.shade700),
+      alignLabelWithHint: alignLabelWithHint,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.deepOrange, width: 1.5),
+      ),
+    );
   }
 }

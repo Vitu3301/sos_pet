@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Importa o arquivo que você acabou de gerar
-import 'screens/auth_screen.dart';
+import 'firebase_options.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   // Garante a inicialização correta dos widgets do Flutter
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SOS Pet',
       theme: ThemeData(primarySwatch: Colors.orange),
-      home: const AuthScreen(),
+      home: const SplashScreen(),
     );
   }
 }
