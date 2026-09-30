@@ -73,6 +73,8 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (context) => const PetFormScreen()),
     );
 
+    if (!mounted) return;
+
     if (novoPet != null) {
       setState(() {
         _petsMock.add(novoPet);
@@ -90,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => PetFormScreen(petParaEditar: pet),
       ),
     );
+
+    if (!mounted) return;
 
     if (petEditado != null) {
       setState(() {
@@ -192,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: statusColor),
                       ),
