@@ -124,7 +124,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _statusSelecionado,
+                initialValue: _statusSelecionado,
                 decoration: const InputDecoration(
                     labelText: 'Status', border: OutlineInputBorder()),
                 items: ['Perdido', 'Para Adoção'].map((String status) {
