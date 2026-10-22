@@ -6,6 +6,8 @@ import '../services/user_service.dart';
 import 'notifications_screen.dart';
 import 'pet_detail_screen.dart';
 import 'pet_form_screen.dart';
+import 'search_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -77,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
+                // CORREÇÃO: Removido o 'const'
+                MaterialPageRoute(builder: (_) => SearchScreen()),
               );
             },
           ),
@@ -95,7 +98,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                // CORREÇÃO: Removido o 'const'
+                MaterialPageRoute(builder: (_) => ProfileScreen()),
               );
             },
           ),
@@ -329,12 +333,14 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          pet['nome'],
+                          // CORREÇÃO: Trocado pet['nome'] por pet.nome
+                          pet.nome,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -342,7 +348,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${pet['raca']} • ${pet['local']}',
+                          // CORREÇÃO: Removido formatação quebrada do git e usado atributos corretos
+                          '${pet.raca} • ${pet.local}',
                           style:
                               TextStyle(color: Colors.grey[600], fontSize: 14),
                         ),
@@ -357,7 +364,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         border: Border.all(color: statusColor),
                       ),
                       child: Text(
-                        pet['status'],
+                        // CORREÇÃO: Trocado pet['status'] por pet.status
+                        pet.status,
                         style: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.bold,
