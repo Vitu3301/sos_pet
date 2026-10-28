@@ -16,7 +16,7 @@ void main() async {
   // Inicializa o Supabase (Substitua pelas chaves reais do seu projeto no Supabase)
   await Supabase.initialize(
     url: 'https://zstuvejdhfkfsqwqlheu.supabase.co',
-    anonKey: 'sb_secret_IqKPPAPkpKTBY9cJ5gqk3w_P2qqsH96',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzdHV2ZWpkaGZrZnNxd3FsaGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1Mzg1MDgsImV4cCI6MjEwODExNDUwOH0.rqQ1vYhtQKA1B9B2FErqZB1ZL6ugtY9F0c90sAf7WgM',
   );
 
   runApp(const MyApp());
