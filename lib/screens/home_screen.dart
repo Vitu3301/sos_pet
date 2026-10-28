@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+
 import '../models/user_model.dart';
 import '../services/user_service.dart';
 import 'notifications_screen.dart';
@@ -18,34 +22,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   UserModel? _currentUser;
-
-  final List<PetModel> _petsMock = [
-    const PetModel(
-      nome: 'Rex',
-      raca: 'Golden Retriever',
-      status: 'Perdido',
-      local: 'Camaragibe',
-      resumo:
-          'Cão muito amigável, usa coleira azul e foi visto perto do bairro.',
-      foto:
-          'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80',
-    ),
-    const PetModel(
-      nome: 'Mimi',
-      raca: 'SRD (Vira-lata)',
-      status: 'Para Adoção',
-      local: 'Recife',
-      resumo:
-          'Gata carinhosa, porte pequeno, muito tranquila com crianças e outros pets.',
-      foto:
-          'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80',
-    ),
-  ];
+  String? _firebaseUid;
 
   @override
   void initState() {
     super.initState();
     _carregarUsuarioAtual();
+    _firebaseUid = FirebaseAuth.instance.currentUser?.uid;
   }
 
   Future<void> _carregarUsuarioAtual() async {
@@ -79,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                // CORREÇÃO: Removido o 'const'
                 MaterialPageRoute(builder: (_) => SearchScreen()),
               );
             },
@@ -98,89 +80,142 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                // CORREÇÃO: Removido o 'const'
                 MaterialPageRoute(builder: (_) => ProfileScreen()),
               );
             },
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context), // Volta para a tela de login
           ),
         ],
       ),
+      // StreamBuilder escutando as mudanças no Firestore em tempo real
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFB74D), Color(0xFFFF9800)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('pets')
+              .orderBy('dataAtualizacao', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Colors.orange));
+            }
+
+            if (snapshot.hasError) {
+              return const Center(child: Text('Erro ao carregar o feed.'));
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+
+            // Calcula os totais dinamicamente baseados no banco de dados!
+            int totalPerdidos = docs.where((d) => (d.data() as Map<String, dynamic>)['status'] == 'Perdido').length;
+            int totalAdocao = docs.where((d) => (d.data() as Map<String, dynamic>)['status'] == 'Para Adoção').length;
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+              children: [
+                // Banner de Destaque
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFB74D), Color(0xFFFF9800)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Animais em destaque',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18), // Corrigido de withValues(alpha: 0.18)
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.favorite, color: Colors.white, size: 20),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       const Text(
-                        'Animais em destaque',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        'Ajude a localizar, adotar e cuidar de pets em situação vulnerável.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.favorite,
-                            color: Colors.white, size: 20),
+                      const SizedBox(height: 18),
+                      // Chips com contagem real
+                      Row(
+                        children: [
+                          _summaryChip('$totalPerdidos perdidos', Colors.red.shade50),
+                          const SizedBox(width: 10),
+                          _summaryChip('$totalAdocao para adoção', Colors.green.shade50),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Ajude a localizar, adotar e cuidar de pets em situação vulnerável.',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      _summaryChip('2 perdidos', Colors.red.shade50),
-                      const SizedBox(width: 10),
-                      _summaryChip('1 para adoção', Colors.green.shade50),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            const Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 8),
-              child: Text(
-                'Pets da comunidade',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
                 ),
-              ),
-            ),
-            ...List.generate(_petsMock.length, (index) {
-              final pet = _petsMock[index];
-              return _buildPetCard(pet, index);
-            }),
-          ],
+                const SizedBox(height: 18),
+                const Padding(
+                  padding: EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    'Pets da comunidade',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+                
+                // Mensagem caso não tenha nenhum pet cadastrado
+                if (docs.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: Center(
+                      child: Text(
+                        'Nenhum pet encontrado no momento.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+
+                // Lista de Cards mapeados do Firestore
+                ...docs.map((doc) {
+                  final petData = doc.data() as Map<String, dynamic>;
+                  final String docId = doc.id;
+                  final String donoUid = petData['dono_uid'] ?? '';
+                  
+                  // Verifica se o usuário atual é o dono deste pet
+                  final bool isDono = _firebaseUid != null && _firebaseUid == donoUid;
+
+                  final pet = PetModel(
+                    id: docId,
+                    nome: petData['nome'] ?? 'Sem nome',
+                    raca: petData['raca'] ?? 'Desconhecida',
+                    status: petData['status'] ?? 'Indefinido',
+                    local: petData['local'] ?? 'Desconhecido',
+                    resumo: petData['resumo'] ?? '',
+                    foto: petData['foto'] ?? '',
+                  );
+
+                  return _buildPetCard(pet, docId, isDono);
+                }),
+              ],
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -212,64 +247,64 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _adicionarPet() async {
-    final novoPet = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const PetFormScreen()),
     );
-
-    if (!mounted) return;
-
-    if (novoPet != null) {
-      setState(() {
-        _petsMock.add(novoPet);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${novoPet.nome} registrado com sucesso!')),
-      );
-    }
+    // Não é necessário usar setState ou atualizar lista, o StreamBuilder atualiza a tela automaticamente!
   }
 
-  Future<void> _editarPet(PetModel pet, int index) async {
-    final petEditado = await Navigator.push(
+  Future<void> _editarPet(PetModel pet) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => PetFormScreen(petParaEditar: pet),
       ),
     );
-
-    if (!mounted) return;
-
-    if (petEditado != null) {
-      setState(() {
-        _petsMock[index] = petEditado;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${petEditado.nome} atualizado com sucesso!')),
-      );
-    }
   }
 
-  void _removerPet(int index) {
+  void _removerPet(PetModel pet, String docId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover animal'),
-        content: const Text('Deseja realmente remover este pet da lista?'),
+        content: const Text('Deseja realmente remover este pet da lista? Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () {
-              final petRemovido = _petsMock[index];
-              setState(() {
-                _petsMock.removeAt(index);
-              });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${petRemovido.nome} foi removido!')),
-              );
+            onPressed: () async {
+              Navigator.pop(ctx); // Fecha o dialog
+              
+              try {
+                // 1. Apaga do Firestore
+                await FirebaseFirestore.instance.collection('pets').doc(docId).delete();
+
+                // 2. Apaga a imagem do Supabase
+                if (pet.foto.contains('supabase.co') && pet.foto.contains('pets_images/')) {
+                  final partes = pet.foto.split('pets_images/');
+                  if (partes.length > 1) {
+                    final caminhoArquivo = partes[1].split('?').first;
+                    await Supabase.instance.client.storage
+                        .from('pets_images')
+                        .remove([caminhoArquivo]);
+                  }
+                }
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${pet.nome} foi removido com sucesso!')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro ao remover: $e')),
+                  );
+                }
+              }
             },
             child: const Text('Remover', style: TextStyle(color: Colors.red)),
           ),
@@ -278,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPetCard(PetModel pet, int index) {
+  Widget _buildPetCard(PetModel pet, String docId, bool isDono) {
     final statusColor = pet.status == 'Perdido' ? Colors.red : Colors.green;
 
     return Card(
@@ -291,27 +326,39 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Stack(
             children: [
+              // Trata a imagem de forma segura para web/mobile com erro builder
               kIsWeb || pet.foto.startsWith('http')
                   ? Image.network(
-                      pet.foto,
+                      pet.foto.isNotEmpty ? pet.foto : 'https://via.placeholder.com/400x220',
                       height: 220,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 220,
+                        width: double.infinity,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 50),
+                      ),
                     )
                   : Image.file(
                       File(pet.foto),
                       height: 220,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 220,
+                        width: double.infinity,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                      ),
                     ),
               Positioned(
                 top: 12,
                 right: 12,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.9),
+                    color: statusColor.withOpacity(0.9), // Corrigido de withValues
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -335,36 +382,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          // CORREÇÃO: Trocado pet['nome'] por pet.nome
-                          pet.nome,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pet.nome,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          // CORREÇÃO: Removido formatação quebrada do git e usado atributos corretos
-                          '${pet.raca} • ${pet.local}',
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 14),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            '${pet.raca}\n${pet.local}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                          ),
+                        ],
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: statusColor),
                       ),
                       child: Text(
-                        // CORREÇÃO: Trocado pet['status'] por pet.status
                         pet.status,
                         style: TextStyle(
                           color: statusColor,
@@ -393,24 +437,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         foregroundColor: Colors.orange,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => _editarPet(pet, index),
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Editar'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.blue,
+                    
+                    // Só mostra "Editar" e "Remover" se o usuário for o dono do anúncio
+                    if (isDono) ...[
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () => _editarPet(pet),
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: const Text('Editar'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => _removerPet(index),
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Remover'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () => _removerPet(pet, docId),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('Remover'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],

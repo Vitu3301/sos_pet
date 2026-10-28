@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 
@@ -10,6 +11,12 @@ void main() async {
   // Inicializa o Firebase usando as configurações da plataforma atual (Web, Android, etc.)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Inicializa o Supabase (Substitua pelas chaves reais do seu projeto no Supabase)
+  await Supabase.initialize(
+    url: 'https://zstuvejdhfkfsqwqlheu.supabase.co',
+    anonKey: 'sb_publishable_0_XFUwOcwne3-ZmRNzh06g_eAy_LIMf',
   );
 
   runApp(const MyApp());
@@ -23,6 +30,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SOS Pet',
       theme: ThemeData(primarySwatch: Colors.orange),
+      debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
     );
   }

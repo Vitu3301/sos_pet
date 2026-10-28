@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data'; // Necessário para o upload na Web (Uint8List)
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Para pegar o UID do Firebase
+import 'package:supabase_flutter/supabase_flutter.dart'; // Para o Storage do Supabase
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -70,6 +72,16 @@ class _PetFormScreenState extends State<PetFormScreen> {
         return;
       }
 
+      // 1. Pega o usuário atual do Firebase Authentication
+      final usuarioAtual = FirebaseAuth.instance.currentUser;
+      if (usuarioAtual == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro: Usuário não autenticado.')),
+        );
+        return;
+      }
+      final String firebaseUid = usuarioAtual.uid;
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -80,23 +92,32 @@ class _PetFormScreenState extends State<PetFormScreen> {
       try {
         String caminhoImagemParaSalvar = _imagemAntiga ?? '';
 
+        // 2. Upload para o Supabase Storage se houver uma nova imagem
         if (_arquivoImagemNova != null) {
           final fileName = _arquivoImagemNova!.name.isNotEmpty
               ? _arquivoImagemNova!.name
               : 'pet_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-          final storageRef = FirebaseStorage.instance
-              .ref()
-              .child('pets/${DateTime.now().millisecondsSinceEpoch}_$fileName');
+          // Organização: pasta raiz (pets_images) -> pasta do usuário (UID) -> arquivo
+          final String caminhoSupabase = '$firebaseUid/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+          final supabase = Supabase.instance.client;
 
           if (kIsWeb) {
-            final bytes = await _arquivoImagemNova!.readAsBytes();
-            await storageRef.putData(bytes);
+            final Uint8List bytes = await _arquivoImagemNova!.readAsBytes();
+            await supabase.storage
+                .from('pets_images')
+                .uploadBinary(caminhoSupabase, bytes);
           } else {
-            await storageRef.putFile(File(_arquivoImagemNova!.path));
+            final File file = File(_arquivoImagemNova!.path);
+            await supabase.storage
+                .from('pets_images')
+                .upload(caminhoSupabase, file);
           }
 
-          caminhoImagemParaSalvar = await storageRef.getDownloadURL();
+          // 3. Recupera a URL pública gerada pelo Supabase
+          caminhoImagemParaSalvar = supabase.storage
+              .from('pets_images')
+              .getPublicUrl(caminhoSupabase);
         }
 
         final petModel = PetModel(
@@ -111,15 +132,20 @@ class _PetFormScreenState extends State<PetFormScreen> {
         );
 
         final firestore = FirebaseFirestore.instance;
+        
+        // Converte o model para Map e adiciona o dono_uid para persistência e segurança
+        final Map<String, dynamic> petData = petModel.toMap();
+        petData['dono_uid'] = firebaseUid; 
 
+        // 4. Salva no Firebase Firestore
         if (widget.petParaEditar != null && widget.petParaEditar!.id != null) {
           final String docId = widget.petParaEditar!.id!;
           await firestore
               .collection('pets')
               .doc(docId)
-              .update(petModel.toMap());
+              .update(petData);
         } else {
-          await firestore.collection('pets').add(petModel.toMap());
+          await firestore.collection('pets').add(petData);
         }
 
         if (mounted) Navigator.of(context, rootNavigator: true).pop();

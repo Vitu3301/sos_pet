@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sos_pet/models/user_model.dart';
@@ -110,72 +109,13 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _loginComGoogle() async {
-    if (!_isLogin && !_aceitouTermos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Você precisa aceitar os termos para continuar.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential =
-          await FirebaseAuth.instance.signInWithCredential(credential);
-
-      if (userCredential.user != null) {
-        final userModel = UserModel.fromFirebaseUser(
-          userCredential.user!,
-          telefone: _telefoneController.text.trim(),
-        );
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userModel.uid)
-            .set(userModel.toMap(), SetOptions(merge: true));
-      }
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } on FirebaseAuthException catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Erro ao entrar com Google: ${error.message ?? error.code}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } catch (error) {
-      debugPrint('Erro no login com Google: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível continuar com o Google.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    // Função temporariamente desativada para testes
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Login com Google desativado temporariamente para testes.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {
