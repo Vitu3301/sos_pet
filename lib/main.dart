@@ -16,7 +16,7 @@ void main() async {
   // Inicializa o Supabase (Substitua pelas chaves reais do seu projeto no Supabase)
   await Supabase.initialize(
     url: 'https://zstuvejdhfkfsqwqlheu.supabase.co',
-    anonKey: 'sb_publishable_0_XFUwOcwne3-ZmRNzh06g_eAy_LIMf',
+    anonKey: 'sb_secret_IqKPPAPkpKTBY9cJ5gqk3w_P2qqsH96',
   );
 
   runApp(const MyApp());
