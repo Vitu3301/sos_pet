@@ -13,6 +13,7 @@ import 'pet_detail_screen.dart';
 import 'pet_form_screen.dart';
 import 'search_screen.dart';
 import 'profile_screen.dart';
+import 'nearby_places_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -195,6 +196,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(
                   builder: (_) => const ConversationsScreen(),
                 ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Locais próximos',
+            icon: const Icon(Icons.map_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NearbyPlacesScreen()),
               );
             },
           ),
