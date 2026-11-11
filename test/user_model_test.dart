@@ -52,13 +52,19 @@ void main() {
         'status': 'Perdido',
         'foto': 'https://example.com/rex.png',
         'resumo': 'Cão muito carinhoso e muito atento ao dono.',
+        'dono_uid': 'owner-1',
+        'dono_nome': 'Ana',
       });
 
       expect(pet.id, 'pet-1');
       expect(pet.nome, 'Rex');
       expect(pet.status, 'Perdido');
+      expect(pet.donoUid, 'owner-1');
+      expect(pet.donoNome, 'Ana');
       expect(pet.resumo, 'Cão muito carinhoso e muito atento ao dono.');
       expect(pet.toMap()['local'], 'Recife');
+      expect(pet.toMap()['dono_uid'], 'owner-1');
+      expect(pet.toMap()['dono_nome'], 'Ana');
       expect(
           pet.toMap()['resumo'], 'Cão muito carinhoso e muito atento ao dono.');
     });

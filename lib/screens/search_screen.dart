@@ -49,7 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Filtro de Status
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -77,7 +77,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Lista de resultados em tempo real do Firebase
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
@@ -96,15 +96,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     // 1. Converte os documentos do Firebase para PetModel
                     final List<PetModel> todosPets = docs.map((doc) {
                       final petData = doc.data() as Map<String, dynamic>;
-                      return PetModel(
-                        id: doc.id,
-                        nome: petData['nome'] ?? 'Sem nome',
-                        raca: petData['raca'] ?? 'Desconhecida',
-                        status: petData['status'] ?? 'Indefinido',
-                        local: petData['local'] ?? 'Desconhecido',
-                        resumo: petData['resumo'] ?? '',
-                        foto: petData['foto'] ?? '',
-                      );
+                      return PetModel.fromMap(doc.id, petData);
                     }).toList();
 
                     // 2. Aplica o filtro de texto e status localmente
