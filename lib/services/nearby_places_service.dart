@@ -36,6 +36,13 @@ class NearbyPlace {
     final tags = rawTags.map<String, String>(
       (key, value) => MapEntry(key.toString(), value.toString()),
     );
+    String? firstNonEmptyTag(List<String> keys) {
+      for (final key in keys) {
+        final value = tags[key]?.trim();
+        if (value != null && value.isNotEmpty) return value;
+      }
+      return null;
+    }
 
     final latitude = element['lat'] ??
         (element['center'] is Map ? element['center']['lat'] : null);
@@ -73,8 +80,9 @@ class NearbyPlace {
         longitude.toDouble(),
       ),
       address: addressParts.isEmpty ? null : addressParts.join(' - '),
-      phone: tags['phone'] ?? tags['contact:phone'],
-      website: tags['website'] ?? tags['contact:website'],
+      phone: firstNonEmptyTag(
+          ['phone', 'contact:phone', 'mobile', 'contact:mobile']),
+      website: firstNonEmptyTag(['website', 'contact:website', 'url']),
     );
   }
 

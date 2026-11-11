@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/nearby_places_service.dart';
 
@@ -333,7 +335,7 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
     }
 
     return SizedBox(
-      height: 150,
+      height: 174,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         scrollDirection: Axis.horizontal,
@@ -343,11 +345,16 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
           final place = places[index];
           final color = _placeColor(place);
           return SizedBox(
-            width: 250,
+            width: 270,
             child: Card(
               margin: EdgeInsets.zero,
+              elevation: 2,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(18),
                 onTap: () {
                   _mapController.move(place.position, 16);
                   _showPlaceDetails(place);
@@ -359,8 +366,15 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.pets, color: color, size: 20),
-                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.pets, color: color, size: 17),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               place.type == NearbyPlaceType.adoption
@@ -370,15 +384,25 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
                                   color: color, fontWeight: FontWeight.w600),
                             ),
                           ),
-                          Text('${place.distanceKm.toStringAsFixed(1)} km'),
+                          Text(
+                            '${place.distanceKm.toStringAsFixed(1)} km',
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Text(
                         place.name,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
                       if (place.address != null)
                         Text(
@@ -389,10 +413,29 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
                               color: Colors.grey.shade700, fontSize: 12),
                         ),
                       const Spacer(),
-                      const Text(
-                        'Toque para ver detalhes',
-                        style:
-                            TextStyle(color: Colors.deepOrange, fontSize: 12),
+                      Row(
+                        children: [
+                          if (place.phone?.trim().isNotEmpty ?? false) ...[
+                            Icon(Icons.phone_outlined,
+                                size: 16, color: Colors.grey.shade600),
+                            const SizedBox(width: 8),
+                          ],
+                          if (place.website?.trim().isNotEmpty ?? false)
+                            Icon(Icons.language,
+                                size: 16, color: Colors.grey.shade600),
+                          const Spacer(),
+                          const Text(
+                            'Ver detalhes',
+                            style: TextStyle(
+                              color: Colors.deepOrange,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(Icons.arrow_forward_rounded,
+                              size: 15, color: Colors.deepOrange),
+                        ],
                       ),
                     ],
                   ),
@@ -436,45 +479,156 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
       : Colors.deepOrange;
 
   void _showPlaceDetails(NearbyPlace place) {
+    final phone = place.phone?.trim();
+    final callablePhone = phone?.replaceAll(RegExp(r'[^0-9+]'), '');
+    final website = place.website?.trim();
+    final websiteText = website == null || website.isEmpty
+        ? null
+        : website.contains('://')
+            ? website
+            : 'https://$website';
+    final websiteUri = websiteText == null ? null : Uri.tryParse(websiteText);
+    final canOpenWebsite = websiteUri != null &&
+        (websiteUri.scheme == 'http' || websiteUri.scheme == 'https') &&
+        websiteUri.host.isNotEmpty;
+
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
       builder: (context) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(place.name, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(
-                place.type == NearbyPlaceType.adoption
-                    ? 'Adoção de animais'
-                    : 'Abrigo / acolhimento',
-                style: TextStyle(
-                    color: _placeColor(place), fontWeight: FontWeight.w600),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _placeColor(place).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child:
+                        Icon(Icons.pets, color: _placeColor(place), size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          place.name,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          place.type == NearbyPlaceType.adoption
+                              ? 'Adoção de animais'
+                              : 'Abrigo / acolhimento',
+                          style: TextStyle(
+                            color: _placeColor(place),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              if (place.address != null) ...[
+              const SizedBox(height: 18),
+              if (place.address != null)
+                _placeInfoTile(
+                  icon: Icons.location_on_outlined,
+                  text: place.address!,
+                ),
+              _placeInfoTile(
+                icon: Icons.near_me_outlined,
+                text: '${place.distanceKm.toStringAsFixed(1)} km de você',
+              ),
+              if ((phone != null && phone.isNotEmpty) || canOpenWebsite) ...[
+                const SizedBox(height: 18),
+                Text(
+                  'Entre em contato',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 10),
-                Text(place.address!),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    if (phone != null && phone.isNotEmpty)
+                      OutlinedButton.icon(
+                        onPressed: callablePhone != null &&
+                                callablePhone.replaceAll('+', '').isNotEmpty
+                            ? () => _openContact(
+                                  Uri(scheme: 'tel', path: callablePhone),
+                                  'Não foi possível abrir o telefone.',
+                                )
+                            : null,
+                        icon: const Icon(Icons.call_outlined),
+                        label: const Text('Ligar'),
+                      ),
+                    if (canOpenWebsite)
+                      FilledButton.icon(
+                        onPressed: () => _openContact(
+                          websiteUri,
+                          'Não foi possível abrir o site.',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.deepOrange,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.language),
+                        label: const Text('Visitar site'),
+                      ),
+                  ],
+                ),
+                if (phone != null && phone.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    phone,
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                ],
+                if (websiteText != null) ...[
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    websiteText,
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                ],
+              ] else ...[
+                const SizedBox(height: 18),
+                _placeInfoTile(
+                  icon: Icons.info_outline,
+                  text: 'Este local não informou telefone ou site.',
+                ),
               ],
-              if (place.phone != null) ...[
-                const SizedBox(height: 6),
-                SelectableText('Telefone: ${place.phone}'),
-              ],
-              if (place.website != null) ...[
-                const SizedBox(height: 6),
-                SelectableText(place.website!),
-              ],
-              const SizedBox(height: 12),
-              const Text(
-                'Confirme por telefone ou site se o local está aberto e recebe animais antes de se deslocar. Não deixe o animal sem autorização.',
-                style: TextStyle(fontSize: 13),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Text(
+                  'Confirme se o local está aberto e recebe animais antes de se deslocar. Não deixe o pet sem autorização.',
+                  style: TextStyle(fontSize: 13),
+                ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
-                'Dados colaborativos do OpenStreetMap · ${place.distanceKm.toStringAsFixed(1)} km de você',
+                'Dados colaborativos do OpenStreetMap',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
               ),
             ],
@@ -482,5 +636,35 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
         ),
       ),
     );
+  }
+
+  Widget _placeInfoTile({required IconData icon, required String text}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 19, color: Colors.grey.shade600),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openContact(Uri uri, String errorMessage) async {
+    try {
+      final launched =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
+    } on PlatformException {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
+    }
   }
 }
