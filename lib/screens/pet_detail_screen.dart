@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import 'chat_screen.dart';
 
 class PetDetailScreen extends StatelessWidget {
   final PetModel pet;
@@ -107,14 +109,53 @@ class PetDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Contato com o responsável solicitado.'),
+                    final currentUser = FirebaseAuth.instance.currentUser;
+                    if (currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Entre na sua conta para iniciar uma conversa.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final ownerUid = pet.donoUid;
+                    if (ownerUid == null ||
+                        ownerUid.isEmpty ||
+                        pet.id == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Não foi possível identificar o responsável por este anúncio.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (ownerUid == currentUser.uid) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Este anúncio foi publicado por você.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          pet: pet,
+                          ownerUid: ownerUid,
+                          ownerName: pet.donoNome,
+                        ),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.call),
-                  label: const Text('Entrar em contato'),
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: const Text('Conversar com responsável'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,

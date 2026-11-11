@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;import '../models/user_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import '../models/user_model.dart';
 import 'pet_detail_screen.dart';
 
 class MyPetsScreen extends StatefulWidget {
@@ -148,18 +149,11 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 12),
                                   itemBuilder: (context, index) {
-                                    final petData = docs[index].data() as Map<String, dynamic>;
                                     final docId = docs[index].id;
-
-                                    // Converte o Map do Firebase para o seu PetModel
-                                    final pet = PetModel(
-                                      id: docId,
-                                      nome: petData['nome'] ?? 'Sem nome',
-                                      raca: petData['raca'] ?? 'Desconhecida',
-                                      status: petData['status'] ?? 'Indefinido',
-                                      local: petData['local'] ?? 'Desconhecido',
-                                      resumo: petData['resumo'] ?? '',
-                                      foto: petData['foto'] ?? '',
+                                    final pet = PetModel.fromMap(
+                                      docId,
+                                      docs[index].data()
+                                          as Map<String, dynamic>,
                                     );
 
                                     // Permite deslizar para a esquerda para excluir
@@ -241,8 +235,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                                 child: Padding(
                                                   padding: const EdgeInsets.all(12),
                                                   child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment.start,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
                                                       Text(
                                                         pet.nome,

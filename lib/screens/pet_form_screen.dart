@@ -128,14 +128,16 @@ class _PetFormScreenState extends State<PetFormScreen> {
           status: _statusSelecionado,
           foto: caminhoImagemParaSalvar,
           resumo: _resumoController.text.trim(),
+          donoUid: firebaseUid,
+          donoNome: usuarioAtual.displayName ?? 'Responsável',
           dataAtualizacao: DateTime.now(),
         );
 
         final firestore = FirebaseFirestore.instance;
-        
+
         // Converte o model para Map e adiciona o dono_uid para persistência e segurança
         final Map<String, dynamic> petData = petModel.toMap();
-        petData['dono_uid'] = firebaseUid; 
+        petData['dono_uid'] = firebaseUid;
 
         // 4. Salva no Firebase Firestore
         if (widget.petParaEditar != null && widget.petParaEditar!.id != null) {
