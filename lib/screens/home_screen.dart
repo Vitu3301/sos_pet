@@ -12,6 +12,7 @@ import 'pet_detail_screen.dart';
 import 'pet_form_screen.dart';
 import 'search_screen.dart';
 import 'profile_screen.dart';
+import 'nearby_places_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,6 +58,16 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'Locais próximos',
+            icon: const Icon(Icons.map_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NearbyPlacesScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.search_rounded),
             onPressed: () {
@@ -179,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                
+
                 // Mensagem caso não tenha nenhum pet cadastrado
                 if (docs.isEmpty)
                   const Padding(
@@ -197,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   final petData = doc.data() as Map<String, dynamic>;
                   final String docId = doc.id;
                   final String donoUid = petData['dono_uid'] ?? '';
-                  
+
                   // Verifica se o usuário atual é o dono deste pet
                   final bool isDono = _firebaseUid != null && _firebaseUid == donoUid;
 
@@ -277,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx); // Fecha o dialog
-              
+
               try {
                 // 1. Apaga do Firestore
                 await FirebaseFirestore.instance.collection('pets').doc(docId).delete();
@@ -437,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         foregroundColor: Colors.orange,
                       ),
                     ),
-                    
+
                     // Só mostra "Editar" e "Remover" se o usuário for o dono do anúncio
                     if (isDono) ...[
                       const SizedBox(width: 8),
