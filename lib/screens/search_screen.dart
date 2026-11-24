@@ -81,14 +81,18 @@ class _SearchScreenState extends State<SearchScreen> {
               // Lista de resultados em tempo real do Firebase
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('pets').snapshots(),
+                  stream:
+                      FirebaseFirestore.instance.collection('pets').snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Colors.orange));
+                      return const Center(
+                          child:
+                              CircularProgressIndicator(color: Colors.orange));
                     }
 
                     if (snapshot.hasError) {
-                      return const Center(child: Text('Erro ao carregar os dados.'));
+                      return const Center(
+                          child: Text('Erro ao carregar os dados.'));
                     }
 
                     final docs = snapshot.data?.docs ?? [];
@@ -102,7 +106,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     // 2. Aplica o filtro de texto e status localmente
                     final textoPesquisa = _controller.text.trim().toLowerCase();
                     final petsFiltrados = todosPets.where((pet) {
-                      final atendeStatus = _filtroStatus == 'Todos' || pet.status == _filtroStatus;
+                      final atendeStatus = _filtroStatus == 'Todos' ||
+                          pet.status == _filtroStatus;
                       final atendeTexto = textoPesquisa.isEmpty ||
                           pet.nome.toLowerCase().contains(textoPesquisa) ||
                           pet.local.toLowerCase().contains(textoPesquisa) ||
@@ -151,15 +156,21 @@ class _SearchScreenState extends State<SearchScreen> {
                                     bottomLeft: Radius.circular(18),
                                   ),
                                   child: Image.network(
-                                    pet.foto.isNotEmpty ? pet.foto : 'https://via.placeholder.com/150',
+                                    pet.foto.isNotEmpty
+                                        ? pet.foto
+                                        : 'https://via.placeholder.com/150',
                                     width: 110,
                                     height: 110,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
                                       width: 110,
                                       height: 110,
                                       color: Colors.grey.shade300,
-                                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                                      child: const Icon(
+                                          Icons.image_not_supported,
+                                          color: Colors.grey),
                                     ),
                                   ),
                                 ),
@@ -167,7 +178,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                   child: Padding(
                                     padding: const EdgeInsets.all(12),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           pet.nome,

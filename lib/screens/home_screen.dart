@@ -52,9 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
         final hiddenFor =
             (data['hiddenFor'] as List<dynamic>? ?? []).whereType<String>();
         final unreadCounts = data['unreadCountByUid'];
-        final unreadCount = unreadCounts is Map
-            ? (unreadCounts[uid] as num?)?.toInt() ?? 0
-            : 0;
+        final unreadCount =
+            unreadCounts is Map ? (unreadCounts[uid] as num?)?.toInt() ?? 0 : 0;
         return !hiddenFor.contains(uid) && unreadCount > 0;
       }).toList()
         ..sort((a, b) {

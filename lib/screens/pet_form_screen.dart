@@ -99,7 +99,8 @@ class _PetFormScreenState extends State<PetFormScreen> {
               : 'pet_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
           // Organização: pasta raiz (pets_images) -> pasta do usuário (UID) -> arquivo
-          final String caminhoSupabase = '$firebaseUid/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+          final String caminhoSupabase =
+              '$firebaseUid/${DateTime.now().millisecondsSinceEpoch}_$fileName';
           final supabase = Supabase.instance.client;
 
           if (kIsWeb) {
@@ -142,10 +143,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
         // 4. Salva no Firebase Firestore
         if (widget.petParaEditar != null && widget.petParaEditar!.id != null) {
           final String docId = widget.petParaEditar!.id!;
-          await firestore
-              .collection('pets')
-              .doc(docId)
-              .update(petData);
+          await firestore.collection('pets').doc(docId).update(petData);
         } else {
           await firestore.collection('pets').add(petData);
         }

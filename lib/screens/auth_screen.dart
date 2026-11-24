@@ -112,7 +112,8 @@ class _AuthScreenState extends State<AuthScreen> {
     // Função temporariamente desativada para testes
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Login com Google desativado temporariamente para testes.'),
+        content:
+            Text('Login com Google desativado temporariamente para testes.'),
         backgroundColor: Colors.orange,
       ),
     );

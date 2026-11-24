@@ -22,7 +22,8 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
       await FirebaseFirestore.instance.collection('pets').doc(petId).delete();
 
       // 2. Apaga a imagem do armazenamento (Supabase)
-      if (urlImagem.contains('supabase.co') && urlImagem.contains('pets_images/')) {
+      if (urlImagem.contains('supabase.co') &&
+          urlImagem.contains('pets_images/')) {
         // Extrai o caminho exato do arquivo (ex: "UID/nome_da_imagem.jpg")
         final partes = urlImagem.split('pets_images/');
         if (partes.length > 1) {
@@ -162,27 +163,37 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                       direction: DismissDirection.endToStart,
                                       background: Container(
                                         alignment: Alignment.centerRight,
-                                        padding: const EdgeInsets.only(right: 20),
+                                        padding:
+                                            const EdgeInsets.only(right: 20),
                                         decoration: BoxDecoration(
                                           color: Colors.red.shade400,
-                                          borderRadius: BorderRadius.circular(18),
+                                          borderRadius:
+                                              BorderRadius.circular(18),
                                         ),
-                                        child: const Icon(Icons.delete, color: Colors.white),
+                                        child: const Icon(Icons.delete,
+                                            color: Colors.white),
                                       ),
                                       confirmDismiss: (direction) async {
                                         return await showDialog(
                                           context: context,
                                           builder: (context) => AlertDialog(
                                             title: const Text('Excluir Pet?'),
-                                            content: const Text('Tem certeza que deseja apagar este pet? Esta ação não pode ser desfeita.'),
+                                            content: const Text(
+                                                'Tem certeza que deseja apagar este pet? Esta ação não pode ser desfeita.'),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
-                                                child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                                                onPressed: () => Navigator.pop(
+                                                    context, false),
+                                                child: const Text('Cancelar',
+                                                    style: TextStyle(
+                                                        color: Colors.grey)),
                                               ),
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+                                                onPressed: () => Navigator.pop(
+                                                    context, true),
+                                                child: const Text('Excluir',
+                                                    style: TextStyle(
+                                                        color: Colors.red)),
                                               ),
                                             ],
                                           ),
@@ -205,56 +216,71 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                         child: Container(
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(18),
+                                            borderRadius:
+                                                BorderRadius.circular(18),
                                           ),
                                           child: Row(
                                             children: [
                                               ClipRRect(
-                                                borderRadius: const BorderRadius.only(
+                                                borderRadius:
+                                                    const BorderRadius.only(
                                                   topLeft: Radius.circular(18),
-                                                  bottomLeft: Radius.circular(18),
+                                                  bottomLeft:
+                                                      Radius.circular(18),
                                                 ),
                                                 child: Image.network(
-                                                  pet.foto.isNotEmpty 
-                                                      ? pet.foto 
+                                                  pet.foto.isNotEmpty
+                                                      ? pet.foto
                                                       : 'https://via.placeholder.com/150', // Imagem de fallback
                                                   width: 110,
                                                   height: 110,
                                                   fit: BoxFit.cover,
                                                   // Tratamento para caso a imagem demore a carregar ou dê erro
-                                                  errorBuilder: (context, error, stackTrace) =>
+                                                  errorBuilder: (context, error,
+                                                          stackTrace) =>
                                                       Container(
                                                     width: 110,
                                                     height: 110,
                                                     color: Colors.grey.shade300,
-                                                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                                                    child: const Icon(
+                                                        Icons
+                                                            .image_not_supported,
+                                                        color: Colors.grey),
                                                   ),
                                                 ),
                                               ),
                                               Expanded(
                                                 child: Padding(
-                                                  padding: const EdgeInsets.all(12),
+                                                  padding:
+                                                      const EdgeInsets.all(12),
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Text(
                                                         pet.nome,
                                                         style: const TextStyle(
                                                           fontSize: 18,
-                                                          fontWeight: FontWeight.bold,
-                                                          color: Color(0xFF1F2937),
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color:
+                                                              Color(0xFF1F2937),
                                                         ),
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
                                                         pet.raca,
                                                         style: TextStyle(
-                                                          color: Colors.grey.shade600,
+                                                          color: Colors
+                                                              .grey.shade600,
                                                         ),
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                       const SizedBox(height: 8),
                                                       Row(
@@ -262,18 +288,24 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                                           const Icon(
                                                             Icons.location_on,
                                                             size: 14,
-                                                            color: Colors.orange,
+                                                            color:
+                                                                Colors.orange,
                                                           ),
-                                                          const SizedBox(width: 4),
+                                                          const SizedBox(
+                                                              width: 4),
                                                           Expanded(
                                                             child: Text(
                                                               pet.local,
                                                               style: TextStyle(
-                                                                color: Colors.grey.shade700,
+                                                                color: Colors
+                                                                    .grey
+                                                                    .shade700,
                                                                 fontSize: 12,
                                                               ),
                                                               maxLines: 1,
-                                                              overflow: TextOverflow.ellipsis,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                             ),
                                                           ),
                                                         ],
@@ -286,24 +318,30 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                                 padding: const EdgeInsets.only(
                                                     right: 12),
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
                                                     horizontal: 10,
                                                     vertical: 7,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: pet.status == 'Perdido'
+                                                    color: pet.status ==
+                                                            'Perdido'
                                                         ? Colors.red.shade50
                                                         : Colors.green.shade50,
                                                     borderRadius:
-                                                        BorderRadius.circular(999),
+                                                        BorderRadius.circular(
+                                                            999),
                                                   ),
                                                   child: Text(
                                                     pet.status,
                                                     style: TextStyle(
-                                                      color: pet.status == 'Perdido'
+                                                      color: pet.status ==
+                                                              'Perdido'
                                                           ? Colors.red.shade700
-                                                          : Colors.green.shade700,
-                                                      fontWeight: FontWeight.bold,
+                                                          : Colors
+                                                              .green.shade700,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       fontSize: 11,
                                                     ),
                                                   ),
