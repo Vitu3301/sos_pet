@@ -63,6 +63,8 @@ class PetModel {
   final String status;
   final String foto;
   final String resumo;
+  final double? latitude;
+  final double? longitude;
   final String? donoUid;
   final String? donoNome;
   final DateTime? dataAtualizacao;
@@ -75,6 +77,8 @@ class PetModel {
     required this.status,
     required this.foto,
     this.resumo = '',
+    this.latitude,
+    this.longitude,
     this.donoUid,
     this.donoNome,
     this.dataAtualizacao,
@@ -91,6 +95,8 @@ class PetModel {
       status: (map['status'] ?? '').toString(),
       foto: (map['foto'] ?? '').toString(),
       resumo: (map['resumo'] ?? '').toString(),
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
       donoUid: map['dono_uid']?.toString(),
       donoNome: map['dono_nome']?.toString(),
       dataAtualizacao: timestamp is Timestamp ? timestamp.toDate() : null,
@@ -105,6 +111,8 @@ class PetModel {
       'status': status,
       'foto': foto,
       'resumo': resumo,
+      'latitude': latitude,
+      'longitude': longitude,
       'dono_uid': donoUid,
       'dono_nome': donoNome,
       'dataAtualizacao': dataAtualizacao != null

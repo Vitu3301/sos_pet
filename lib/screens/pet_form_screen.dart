@@ -6,6 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart'; // Para o Storage do Su
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/user_model.dart';
 
 class PetFormScreen extends StatefulWidget {
@@ -26,6 +29,10 @@ class _PetFormScreenState extends State<PetFormScreen> {
   final _resumoController = TextEditingController();
 
   String _statusSelecionado = 'Perdido';
+  final MapController _mapController = MapController();
+  LatLng _localizacaoSelecionada =
+      const LatLng(-8.05428, -34.8813);
+  bool _localizacaoFoiSelecionada = false;
 
   XFile? _arquivoImagemNova;
   String? _imagemAntiga;
@@ -40,6 +47,14 @@ class _PetFormScreenState extends State<PetFormScreen> {
       _resumoController.text = widget.petParaEditar!.resumo;
       _statusSelecionado = widget.petParaEditar!.status;
       _imagemAntiga = widget.petParaEditar!.foto;
+      if (widget.petParaEditar!.latitude != null &&
+          widget.petParaEditar!.longitude != null) {
+        _localizacaoSelecionada = LatLng(
+          widget.petParaEditar!.latitude!,
+          widget.petParaEditar!.longitude!,
+        );
+        _localizacaoFoiSelecionada = true;
+      }
     }
   }
 
@@ -60,6 +75,41 @@ class _PetFormScreenState extends State<PetFormScreen> {
       setState(() {
         _arquivoImagemNova = pickedFile;
       });
+    }
+  }
+
+  Future<void> _usarMinhaLocalizacao() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw Exception('Ative o serviço de localização do aparelho.');
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Permissão de localização não concedida.');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      final ponto = LatLng(position.latitude, position.longitude);
+      setState(() {
+        _localizacaoSelecionada = ponto;
+        _localizacaoFoiSelecionada = true;
+      });
+      _mapController.move(ponto, 16);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+      );
     }
   }
 
@@ -129,6 +179,11 @@ class _PetFormScreenState extends State<PetFormScreen> {
           status: _statusSelecionado,
           foto: caminhoImagemParaSalvar,
           resumo: _resumoController.text.trim(),
+          latitude:
+              _localizacaoFoiSelecionada ? _localizacaoSelecionada.latitude : null,
+          longitude: _localizacaoFoiSelecionada
+              ? _localizacaoSelecionada.longitude
+              : null,
           donoUid: firebaseUid,
           donoNome: usuarioAtual.displayName ?? 'Responsável',
           dataAtualizacao: DateTime.now(),
@@ -275,8 +330,97 @@ class _PetFormScreenState extends State<PetFormScreen> {
                     value == null || value.isEmpty ? 'Digite o local' : null,
               ),
               const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Localização no mapa',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _usarMinhaLocalizacao,
+                    icon: const Icon(Icons.my_location, size: 18),
+                    label: const Text('Usar minha posição'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  height: 220,
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: _localizacaoSelecionada,
+                          initialZoom: 13,
+                          onTap: (_, point) {
+                            setState(() {
+                              _localizacaoSelecionada = point;
+                              _localizacaoFoiSelecionada = true;
+                            });
+                          },
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'sos_pet',
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              if (_localizacaoFoiSelecionada)
+                                Marker(
+                                  point: _localizacaoSelecionada,
+                                  width: 42,
+                                  height: 42,
+                                  child: const Icon(
+                                    Icons.pets,
+                                    color: Colors.red,
+                                    size: 38,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        left: 10,
+                        right: 10,
+                        bottom: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _localizacaoFoiSelecionada
+                                ? 'Local selecionado: toque em outro ponto para alterar'
+                                : 'Toque no mapa para informar onde o animal foi visto',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF655B53),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _statusSelecionado,
+                initialValue: _statusSelecionado,
                 decoration: const InputDecoration(
                     labelText: 'Status', border: OutlineInputBorder()),
                 items: ['Perdido', 'Para Adoção'].map((String status) {

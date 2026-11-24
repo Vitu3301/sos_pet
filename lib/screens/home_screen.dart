@@ -26,6 +26,10 @@ class _HomeScreenState extends State<HomeScreen> {
   UserModel? _currentUser;
   String? _firebaseUid;
   bool _checkedConversationNotifications = false;
+  final PageController _carouselController = PageController(
+    viewportFraction: 0.88,
+  );
+  int _carouselIndex = 0;
 
   @override
   void initState() {
@@ -35,6 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showUnreadConversationNotifications();
     });
+  }
+
+  @override
+  void dispose() {
+    _carouselController.dispose();
+    super.dispose();
   }
 
   Future<void> _showUnreadConversationNotifications() async {
@@ -266,9 +276,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       // StreamBuilder escutando as mudanças no Firestore em tempo real
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('pets')
+              .withConverter<Map<String, dynamic>>(
+                fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+                toFirestore: (value, _) => value,
+              )
               .orderBy('dataAtualizacao', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
@@ -296,12 +310,11 @@ class _HomeScreenState extends State<HomeScreen> {
             // Calcula os totais dinamicamente baseados no banco de dados!
             int totalPerdidos = docs
                 .where((d) =>
-                    (d.data() as Map<String, dynamic>)['status'] == 'Perdido')
+                    d.data()['status'] == 'Perdido')
                 .length;
             int totalAdocao = docs
                 .where((d) =>
-                    (d.data() as Map<String, dynamic>)['status'] ==
-                    'Para Adoção')
+                    d.data()['status'] == 'Para Adoção')
                 .length;
 
             return ListView(
@@ -406,6 +419,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 28),
+                if (docs.isNotEmpty) ...[
+                  const Padding(
+                    padding: EdgeInsets.only(left: 2, bottom: 12),
+                    child: Text(
+                      'Destaques da comunidade',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF28231F),
+                      ),
+                    ),
+                  ),
+                  _buildPetCarousel(docs),
+                  const SizedBox(height: 24),
+                ],
                 Padding(
                   padding: const EdgeInsets.only(left: 2, bottom: 14),
                   child: Row(
@@ -495,7 +523,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ...docs.map((doc) {
-                  final petData = doc.data() as Map<String, dynamic>;
+                  final petData = doc.data();
                   final String docId = doc.id;
                   final pet = PetModel.fromMap(docId, petData);
 
@@ -521,6 +549,163 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
+    );
+  }
+
+  Widget _buildPetCarousel(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final destaqueDocs = docs.take(6).toList();
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 230,
+          child: PageView.builder(
+            controller: _carouselController,
+            itemCount: destaqueDocs.length,
+            onPageChanged: (index) {
+              setState(() => _carouselIndex = index);
+            },
+            itemBuilder: (context, index) {
+              final doc = destaqueDocs[index];
+              final pet = PetModel.fromMap(doc.id, doc.data());
+              final statusColor =
+                  pet.status == 'Perdido' ? Colors.red : Colors.green;
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: index == 0 ? 0 : 6,
+                  right: 6,
+                ),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PetDetailScreen(pet: pet),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(22),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: const Color(0xFFF1E8DF)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (pet.foto.isNotEmpty)
+                          kIsWeb || pet.foto.startsWith('http')
+                              ? Image.network(
+                                  pet.foto,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _imagePlaceholder(),
+                                )
+                              : Image.file(
+                                  File(pet.foto),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _imagePlaceholder(),
+                                )
+                        else
+                          _imagePlaceholder(),
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black54,
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 14,
+                          right: 14,
+                          bottom: 14,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 9,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      pet.status,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 7),
+                              Text(
+                                pet.nome,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                pet.local,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(destaqueDocs.length, (index) {
+            final selected = index == _carouselIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: selected ? 18 : 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFE97832)
+                    : const Color(0xFFD9CFC5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 

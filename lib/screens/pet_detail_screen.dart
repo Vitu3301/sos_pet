@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/user_model.dart';
 import 'chat_screen.dart';
 
@@ -87,6 +89,57 @@ class PetDetailScreen extends StatelessWidget {
               const SizedBox(height: 12),
               _infoChip(Icons.location_on, pet.local),
               const SizedBox(height: 20),
+              if (pet.latitude != null && pet.longitude != null) ...[
+                const Text(
+                  'Localização',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    height: 220,
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter:
+                            LatLng(pet.latitude!, pet.longitude!),
+                        initialZoom: 15,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.all,
+                        ),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'sos_pet',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(pet.latitude!, pet.longitude!),
+                              width: 46,
+                              height: 46,
+                              child: Icon(
+                                Icons.pets,
+                                color: pet.status == 'Perdido'
+                                    ? Colors.red
+                                    : Colors.green,
+                                size: 42,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
               const Text(
                 'Sobre o pet',
                 style: TextStyle(

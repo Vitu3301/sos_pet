@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/user_model.dart';
 import 'pet_detail_screen.dart';
 
@@ -12,6 +14,8 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   String _filtroStatus = 'Todos';
+  bool _mostrarMapa = false;
+  final MapController _mapController = MapController();
   final _controller = TextEditingController();
 
   @override
@@ -77,8 +81,33 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(
+                          value: false,
+                          icon: Icon(Icons.list_rounded),
+                          label: Text('Lista'),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          icon: Icon(Icons.map_outlined),
+                          label: Text('Mapa'),
+                        ),
+                      ],
+                      selected: {_mostrarMapa},
+                      onSelectionChanged: (selection) {
+                        setState(() => _mostrarMapa = selection.first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-              // Lista de resultados em tempo real do Firebase
+              // Lista ou mapa dos resultados em tempo real do Firebase
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream:
@@ -123,6 +152,99 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: Colors.grey,
                             fontSize: 16,
                           ),
+                        ),
+                      );
+                    }
+
+                    if (_mostrarMapa) {
+                      final petsComLocalizacao =
+                          petsFiltrados.where((pet) =>
+                              pet.latitude != null && pet.longitude != null).toList();
+                      if (petsComLocalizacao.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'Nenhum dos resultados possui localização no mapa.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
+                      final center = LatLng(
+                        petsComLocalizacao.first.latitude!,
+                        petsComLocalizacao.first.longitude!,
+                      );
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Stack(
+                          children: [
+                            FlutterMap(
+                              mapController: _mapController,
+                              options: MapOptions(
+                                initialCenter: center,
+                                initialZoom: 12,
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate:
+                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'sos_pet',
+                                ),
+                                MarkerLayer(
+                                  markers: petsComLocalizacao
+                                      .map(
+                                        (pet) => Marker(
+                                          point: LatLng(
+                                            pet.latitude!,
+                                            pet.longitude!,
+                                          ),
+                                          width: 48,
+                                          height: 48,
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      PetDetailScreen(pet: pet),
+                                                ),
+                                              );
+                                            },
+                                            child: Icon(
+                                              Icons.pets,
+                                              color: pet.status == 'Perdido'
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                              size: 42,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                            ),
+                            const Positioned(
+                              left: 8,
+                              bottom: 8,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.white70,
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(4)),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 3),
+                                  child: Text(
+                                    '© OpenStreetMap contributors',
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     }
