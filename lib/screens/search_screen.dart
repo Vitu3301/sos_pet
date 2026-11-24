@@ -21,6 +21,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -84,23 +85,32 @@ class _SearchScreenState extends State<SearchScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(
-                          value: false,
-                          icon: Icon(Icons.list_rounded),
-                          label: Text('Lista'),
-                        ),
-                        ButtonSegment(
-                          value: true,
-                          icon: Icon(Icons.map_outlined),
-                          label: Text('Mapa'),
-                        ),
-                      ],
-                      selected: {_mostrarMapa},
-                      onSelectionChanged: (selection) {
-                        setState(() => _mostrarMapa = selection.first);
-                      },
+                    child: OutlinedButton.icon(
+                      onPressed: () => setState(() => _mostrarMapa = false),
+                      icon: const Icon(Icons.list_rounded),
+                      label: const Text('Lista'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: !_mostrarMapa
+                            ? Colors.orange
+                            : Colors.grey.shade700,
+                        backgroundColor: !_mostrarMapa
+                            ? Colors.orange.shade50
+                            : Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => setState(() => _mostrarMapa = true),
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Mapa'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor:
+                            _mostrarMapa ? Colors.orange : Colors.grey.shade700,
+                        backgroundColor:
+                            _mostrarMapa ? Colors.orange.shade50 : Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -157,9 +167,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     }
 
                     if (_mostrarMapa) {
-                      final petsComLocalizacao =
-                          petsFiltrados.where((pet) =>
-                              pet.latitude != null && pet.longitude != null).toList();
+                      final petsComLocalizacao = petsFiltrados
+                          .where((pet) =>
+                              pet.latitude != null && pet.longitude != null)
+                          .toList();
                       if (petsComLocalizacao.isEmpty) {
                         return const Center(
                           child: Padding(

@@ -30,8 +30,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
 
   String _statusSelecionado = 'Perdido';
   final MapController _mapController = MapController();
-  LatLng _localizacaoSelecionada =
-      const LatLng(-8.05428, -34.8813);
+  LatLng _localizacaoSelecionada = const LatLng(-8.05428, -34.8813);
   bool _localizacaoFoiSelecionada = false;
 
   XFile? _arquivoImagemNova;
@@ -64,6 +63,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
     _racaController.dispose();
     _localController.dispose();
     _resumoController.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -108,13 +108,25 @@ class _PetFormScreenState extends State<PetFormScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', ''))),
       );
     }
   }
 
   Future<void> _salvarFormulario() async {
     if (_formKey.currentState!.validate()) {
+      if (!_localizacaoFoiSelecionada) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Informe a localização no mapa tocando em um ponto ou use sua posição.',
+            ),
+          ),
+        );
+        return;
+      }
+
       if (_arquivoImagemNova == null && _imagemAntiga == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Por favor, selecione uma foto!')),
@@ -179,8 +191,9 @@ class _PetFormScreenState extends State<PetFormScreen> {
           status: _statusSelecionado,
           foto: caminhoImagemParaSalvar,
           resumo: _resumoController.text.trim(),
-          latitude:
-              _localizacaoFoiSelecionada ? _localizacaoSelecionada.latitude : null,
+          latitude: _localizacaoFoiSelecionada
+              ? _localizacaoSelecionada.latitude
+              : null,
           longitude: _localizacaoFoiSelecionada
               ? _localizacaoSelecionada.longitude
               : null,

@@ -105,8 +105,7 @@ class PetDetailScreen extends StatelessWidget {
                     height: 220,
                     child: FlutterMap(
                       options: MapOptions(
-                        initialCenter:
-                            LatLng(pet.latitude!, pet.longitude!),
+                        initialCenter: LatLng(pet.latitude!, pet.longitude!),
                         initialZoom: 15,
                         interactionOptions: const InteractionOptions(
                           flags: InteractiveFlag.all,

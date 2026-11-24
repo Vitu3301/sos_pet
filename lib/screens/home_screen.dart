@@ -26,9 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   UserModel? _currentUser;
   String? _firebaseUid;
   bool _checkedConversationNotifications = false;
-  final PageController _carouselController = PageController(
-    viewportFraction: 0.88,
-  );
+  final ScrollController _carouselController = ScrollController();
   int _carouselIndex = 0;
 
   @override
@@ -308,14 +306,10 @@ class _HomeScreenState extends State<HomeScreen> {
             final docs = snapshot.data?.docs ?? [];
 
             // Calcula os totais dinamicamente baseados no banco de dados!
-            int totalPerdidos = docs
-                .where((d) =>
-                    d.data()['status'] == 'Perdido')
-                .length;
-            int totalAdocao = docs
-                .where((d) =>
-                    d.data()['status'] == 'Para Adoção')
-                .length;
+            int totalPerdidos =
+                docs.where((d) => d.data()['status'] == 'Perdido').length;
+            int totalAdocao =
+                docs.where((d) => d.data()['status'] == 'Para Adoção').length;
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 100),
@@ -556,134 +550,149 @@ class _HomeScreenState extends State<HomeScreen> {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final destaqueDocs = docs.take(6).toList();
+    final cardWidth = MediaQuery.sizeOf(context).width * 0.88;
 
     return Column(
       children: [
         SizedBox(
           height: 230,
-          child: PageView.builder(
-            controller: _carouselController,
-            itemCount: destaqueDocs.length,
-            onPageChanged: (index) {
-              setState(() => _carouselIndex = index);
+          child: NotificationListener<ScrollEndNotification>(
+            onNotification: (_) {
+              if (!_carouselController.hasClients) return true;
+              final index = (_carouselController.offset / (cardWidth + 12))
+                  .round()
+                  .clamp(0, destaqueDocs.length - 1);
+              if (index != _carouselIndex) {
+                setState(() => _carouselIndex = index);
+              }
+              _carouselController.animateTo(
+                index * (cardWidth + 12),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+              );
+              return true;
             },
-            itemBuilder: (context, index) {
-              final doc = destaqueDocs[index];
-              final pet = PetModel.fromMap(doc.id, doc.data());
-              final statusColor =
-                  pet.status == 'Perdido' ? Colors.red : Colors.green;
+            child: ListView.builder(
+              controller: _carouselController,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              itemCount: destaqueDocs.length,
+              itemBuilder: (context, index) {
+                final doc = destaqueDocs[index];
+                final pet = PetModel.fromMap(doc.id, doc.data());
+                final statusColor =
+                    pet.status == 'Perdido' ? Colors.red : Colors.green;
 
-              return Padding(
-                padding: EdgeInsets.only(
-                  left: index == 0 ? 0 : 6,
-                  right: 6,
-                ),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PetDetailScreen(pet: pet),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PetDetailScreen(pet: pet),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(22),
+                    child: Container(
+                      width: cardWidth,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: const Color(0xFFF1E8DF),
+                        ),
                       ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(22),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFF1E8DF)),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (pet.foto.isNotEmpty)
-                          kIsWeb || pet.foto.startsWith('http')
-                              ? Image.network(
-                                  pet.foto,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      _imagePlaceholder(),
-                                )
-                              : Image.file(
-                                  File(pet.foto),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      _imagePlaceholder(),
-                                )
-                        else
-                          _imagePlaceholder(),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black54,
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (pet.foto.isNotEmpty)
+                            kIsWeb || pet.foto.startsWith('http')
+                                ? Image.network(
+                                    pet.foto,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        _imagePlaceholder(),
+                                  )
+                                : Image.file(
+                                    File(pet.foto),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        _imagePlaceholder(),
+                                  )
+                          else
+                            _imagePlaceholder(),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black54,
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 14,
+                            right: 14,
+                            bottom: 14,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    pet.status,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                Text(
+                                  pet.nome,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  pet.local,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                        ),
-                        Positioned(
-                          left: 14,
-                          right: 14,
-                          bottom: 14,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 9,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: statusColor,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      pet.status,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 7),
-                              Text(
-                                pet.nome,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                pet.local,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
         const SizedBox(height: 10),
