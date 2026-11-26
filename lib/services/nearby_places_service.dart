@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -135,34 +136,71 @@ class NearbyPlacesService {
 out center tags;
 ''';
 
-    final response = await _client.post(
-      Uri.https('overpass-api.de', '/api/interpreter'),
-      headers: const {'User-Agent': 'SOSPet/1.0'},
-      body: {'data': query},
-    ).timeout(const Duration(seconds: 35));
+    const endpoints = [
+      'overpass-api.de',
+      'overpass.kumi.systems',
+    ];
+    int? lastStatusCode;
+    Object? lastNetworkError;
 
-    if (response.statusCode != 200) {
+    for (final host in endpoints) {
+      http.Response response;
+      try {
+        response = await _client.post(
+          Uri.https(host, '/api/interpreter'),
+          headers: const {'User-Agent': 'SOSPet/1.0'},
+          body: {'data': query},
+        ).timeout(const Duration(seconds: 20));
+      } on TimeoutException catch (error) {
+        lastNetworkError = error;
+        continue;
+      } on http.ClientException catch (error) {
+        lastNetworkError = error;
+        continue;
+      }
+
+      if (response.statusCode != 200) {
+        lastStatusCode = response.statusCode;
+        if (response.statusCode == 502 ||
+            response.statusCode == 503 ||
+            response.statusCode == 504) {
+          continue;
+        }
+        throw NearbyPlacesException(
+          'O serviço de mapas respondeu com o código ${response.statusCode}.',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic> || decoded['elements'] is! List) {
+        throw const NearbyPlacesException(
+            'O serviço de mapas retornou dados inválidos.');
+      }
+
+      final places = <NearbyPlace>[];
+      final seenIds = <String>{};
+      for (final element in decoded['elements'] as List) {
+        if (element is! Map<String, dynamic>) continue;
+        final place = NearbyPlace.fromOverpass(element, origin);
+        if (place != null && seenIds.add(place.id)) places.add(place);
+      }
+      places.sort(
+          (first, second) => first.distanceKm.compareTo(second.distanceKm));
+      return places;
+    }
+
+    if (lastStatusCode != null) {
       throw NearbyPlacesException(
-        'O serviço de mapas respondeu com o código ${response.statusCode}.',
+        'Os serviços de mapas estão temporariamente indisponíveis '
+        '(código $lastStatusCode). Tente novamente em instantes.',
       );
     }
-
-    final decoded = jsonDecode(response.body);
-    if (decoded is! Map<String, dynamic> || decoded['elements'] is! List) {
-      throw const NearbyPlacesException(
-          'O serviço de mapas retornou dados inválidos.');
-    }
-
-    final places = <NearbyPlace>[];
-    final seenIds = <String>{};
-    for (final element in decoded['elements'] as List) {
-      if (element is! Map<String, dynamic>) continue;
-      final place = NearbyPlace.fromOverpass(element, origin);
-      if (place != null && seenIds.add(place.id)) places.add(place);
-    }
-    places
-        .sort((first, second) => first.distanceKm.compareTo(second.distanceKm));
-    return places;
+    throw NearbyPlacesException(
+      lastNetworkError == null
+          ? 'Não foi possível conectar aos serviços de mapas.'
+          : 'Não foi possível conectar aos serviços de mapas. '
+              'Verifique sua conexão e tente novamente.',
+    );
   }
 
   void dispose() => _client.close();

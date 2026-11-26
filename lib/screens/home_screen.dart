@@ -26,7 +26,6 @@ class _HomeScreenState extends State<HomeScreen> {
   UserModel? _currentUser;
   String? _firebaseUid;
   bool _checkedConversationNotifications = false;
-  final ScrollController _carouselController = ScrollController();
   int _carouselIndex = 0;
 
   @override
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _carouselController.dispose();
     super.dispose();
   }
 
@@ -550,172 +548,236 @@ class _HomeScreenState extends State<HomeScreen> {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final destaqueDocs = docs.take(6).toList();
-    final cardWidth = MediaQuery.sizeOf(context).width * 0.88;
+    final currentIndex = _carouselIndex.clamp(0, destaqueDocs.length - 1);
+    final doc = destaqueDocs[currentIndex];
+    final pet = PetModel.fromMap(doc.id, doc.data());
+    final statusColor = pet.status == 'Perdido' ? Colors.red : Colors.green;
 
     return Column(
       children: [
         SizedBox(
           height: 230,
-          child: NotificationListener<ScrollEndNotification>(
-            onNotification: (_) {
-              if (!_carouselController.hasClients) return true;
-              final index = (_carouselController.offset / (cardWidth + 12))
-                  .round()
-                  .clamp(0, destaqueDocs.length - 1);
-              if (index != _carouselIndex) {
-                setState(() => _carouselIndex = index);
-              }
-              _carouselController.animateTo(
-                index * (cardWidth + 12),
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-              );
-              return true;
-            },
-            child: ListView.builder(
-              controller: _carouselController,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              itemCount: destaqueDocs.length,
-              itemBuilder: (context, index) {
-                final doc = destaqueDocs[index];
-                final pet = PetModel.fromMap(doc.id, doc.data());
-                final statusColor =
-                    pet.status == 'Perdido' ? Colors.red : Colors.green;
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PetDetailScreen(pet: pet),
-                        ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    final velocity = details.primaryVelocity ?? 0;
+                    if (velocity < 0 &&
+                        currentIndex < destaqueDocs.length - 1) {
+                      _showCarouselPage(
+                        currentIndex + 1,
+                        destaqueDocs.length,
                       );
-                    },
-                    borderRadius: BorderRadius.circular(22),
-                    child: Container(
-                      width: cardWidth,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: const Color(0xFFF1E8DF),
+                    } else if (velocity > 0 && currentIndex > 0) {
+                      _showCarouselPage(currentIndex - 1, destaqueDocs.length);
+                    }
+                  },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: InkWell(
+                      key: ValueKey(doc.id),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PetDetailScreen(pet: pet),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(22),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: const Color(0xFFF1E8DF),
+                          ),
                         ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (pet.foto.isNotEmpty)
-                            kIsWeb || pet.foto.startsWith('http')
-                                ? Image.network(
-                                    pet.foto,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        _imagePlaceholder(),
-                                  )
-                                : Image.file(
-                                    File(pet.foto),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        _imagePlaceholder(),
-                                  )
-                          else
-                            _imagePlaceholder(),
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black54,
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (pet.foto.isNotEmpty)
+                              kIsWeb || pet.foto.startsWith('http')
+                                  ? Image.network(
+                                      pet.foto,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _imagePlaceholder(),
+                                    )
+                                  : Image.file(
+                                      File(pet.foto),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _imagePlaceholder(),
+                                    )
+                            else
+                              _imagePlaceholder(),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black54,
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 14,
+                              right: 14,
+                              bottom: 14,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 9,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      pet.status,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 7),
+                                  Text(
+                                    pet.nome,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    pet.local,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                          Positioned(
-                            left: 14,
-                            right: 14,
-                            bottom: 14,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 9,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    pet.status,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 7),
-                                Text(
-                                  pet.nome,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                Text(
-                                  pet.local,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+              if (destaqueDocs.length > 1) ...[
+                Positioned(
+                  left: 8,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: _carouselArrow(
+                      tooltip: 'Animal anterior',
+                      icon: Icons.chevron_left_rounded,
+                      enabled: currentIndex > 0,
+                      onPressed: () => _showCarouselPage(
+                        currentIndex - 1,
+                        destaqueDocs.length,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: _carouselArrow(
+                      tooltip: 'Próximo animal',
+                      icon: Icons.chevron_right_rounded,
+                      enabled: currentIndex < destaqueDocs.length - 1,
+                      onPressed: () => _showCarouselPage(
+                        currentIndex + 1,
+                        destaqueDocs.length,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(destaqueDocs.length, (index) {
-            final selected = index == _carouselIndex;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: selected ? 18 : 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0xFFE97832)
-                    : const Color(0xFFD9CFC5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-            );
-          }),
+          children: [
+            ...List.generate(destaqueDocs.length, (index) {
+              final selected = index == currentIndex;
+              return Semantics(
+                button: true,
+                label: 'Ir para animal ${index + 1}',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _showCarouselPage(index, destaqueDocs.length),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: selected ? 18 : 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? const Color(0xFFE97832)
+                            : const Color(0xFFD9CFC5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
         ),
       ],
     );
+  }
+
+  Widget _carouselArrow({
+    required String tooltip,
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.92),
+      shape: const CircleBorder(),
+      elevation: 3,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(icon),
+        color: const Color(0xFFE97832),
+        disabledColor: const Color(0xFFD9CFC5),
+      ),
+    );
+  }
+
+  void _showCarouselPage(int index, int itemCount) {
+    if (index < 0 || index >= itemCount || index == _carouselIndex) return;
+    setState(() => _carouselIndex = index);
   }
 
   Widget _summaryChip(String text, Color bgColor) {

@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sos_pet/services/nearby_places_service.dart';
@@ -62,6 +64,51 @@ void main() {
           origin,
         ),
         isNull,
+      );
+    });
+  });
+
+  group('NearbyPlacesService.findNear', () {
+    test('uses the backup endpoint after a temporary gateway error', () async {
+      final requestedHosts = <String>[];
+      final service = NearbyPlacesService(
+        client: MockClient((request) async {
+          requestedHosts.add(request.url.host);
+          if (requestedHosts.length == 1) {
+            return http.Response('temporarily unavailable', 502);
+          }
+          return http.Response('{"elements":[]}', 200);
+        }),
+      );
+      addTearDown(service.dispose);
+
+      final places = await service.findNear(origin);
+
+      expect(places, isEmpty);
+      expect(requestedHosts, [
+        'overpass-api.de',
+        'overpass.kumi.systems',
+      ]);
+    });
+
+    test('reports an error when both endpoints return gateway errors',
+        () async {
+      final service = NearbyPlacesService(
+        client: MockClient(
+          (_) async => http.Response('temporarily unavailable', 502),
+        ),
+      );
+      addTearDown(service.dispose);
+
+      await expectLater(
+        service.findNear(origin),
+        throwsA(
+          isA<NearbyPlacesException>().having(
+            (error) => error.message,
+            'message',
+            contains('código 502'),
+          ),
+        ),
       );
     });
   });
