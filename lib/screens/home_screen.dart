@@ -27,10 +27,19 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _firebaseUid;
   bool _checkedConversationNotifications = false;
   int _carouselIndex = 0;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _petsStream;
 
   @override
   void initState() {
     super.initState();
+    _petsStream = FirebaseFirestore.instance
+        .collection('pets')
+        .withConverter<Map<String, dynamic>>(
+          fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+          toFirestore: (value, _) => value,
+        )
+        .orderBy('dataAtualizacao', descending: true)
+        .snapshots();
     _carregarUsuarioAtual();
     _firebaseUid = FirebaseAuth.instance.currentUser?.uid;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -273,14 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // StreamBuilder escutando as mudanças no Firestore em tempo real
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('pets')
-              .withConverter<Map<String, dynamic>>(
-                fromFirestore: (snapshot, _) => snapshot.data() ?? {},
-                toFirestore: (value, _) => value,
-              )
-              .orderBy('dataAtualizacao', descending: true)
-              .snapshots(),
+          stream: _petsStream,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
