@@ -14,6 +14,16 @@ class MyPetsScreen extends StatefulWidget {
 
 class _MyPetsScreenState extends State<MyPetsScreen> {
   final User? _usuarioAtual = FirebaseAuth.instance.currentUser;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _petsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _petsStream = FirebaseFirestore.instance
+        .collection('pets')
+        .where('dono_uid', isEqualTo: _usuarioAtual?.uid)
+        .snapshots();
+  }
 
   // Função para deletar o pet do Firestore e a imagem do Supabase
   Future<void> _deletarPet(String petId, String urlImagem) async {
@@ -66,12 +76,9 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
               ),
             )
           : SafeArea(
-              child: StreamBuilder<QuerySnapshot>(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 // Escuta as alterações no banco em tempo real, filtrando pelo UID do dono
-                stream: FirebaseFirestore.instance
-                    .collection('pets')
-                    .where('dono_uid', isEqualTo: _usuarioAtual!.uid)
-                    .snapshots(),
+                stream: _petsStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
@@ -153,8 +160,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                     final docId = docs[index].id;
                                     final pet = PetModel.fromMap(
                                       docId,
-                                      docs[index].data()
-                                          as Map<String, dynamic>,
+                                      docs[index].data(),
                                     );
 
                                     // Permite deslizar para a esquerda para excluir

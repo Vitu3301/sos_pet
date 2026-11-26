@@ -24,6 +24,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   String? _conversationId;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _messagesStream;
   String? _currentUid;
   String _currentName = 'Usuário';
   String _ownerName = 'Responsável';
@@ -95,8 +96,15 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       if (!mounted) return;
+      final messagesStream = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(id)
+          .collection('messages')
+          .orderBy('createdAt', descending: true)
+          .snapshots();
       setState(() {
         _conversationId = id;
+        _messagesStream = messagesStream;
         _isInitializing = false;
       });
     } catch (error) {
@@ -223,16 +231,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessages() {
-    final conversationId = _conversationId;
-    if (conversationId == null) return const SizedBox.shrink();
+    final messagesStream = _messagesStream;
+    if (_conversationId == null || messagesStream == null) {
+      return const SizedBox.shrink();
+    }
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('chats')
-          .doc(conversationId)
-          .collection('messages')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+      stream: messagesStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Center(

@@ -9,7 +9,7 @@ class ChatService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  String conversationId({
+  static String conversationId({
     required String petId,
     required String currentUid,
     required String ownerUid,

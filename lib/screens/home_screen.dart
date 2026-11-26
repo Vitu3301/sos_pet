@@ -47,11 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> _showUnreadConversationNotifications() async {
     final uid = _firebaseUid;
     if (_checkedConversationNotifications || uid == null) return;
@@ -304,230 +299,243 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             final docs = snapshot.data?.docs ?? [];
+            var totalPerdidos = 0;
+            var totalAdocao = 0;
+            for (final doc in docs) {
+              switch (doc.data()['status']) {
+                case 'Perdido':
+                  totalPerdidos++;
+                case 'Para Adoção':
+                  totalAdocao++;
+              }
+            }
 
-            // Calcula os totais dinamicamente baseados no banco de dados!
-            int totalPerdidos =
-                docs.where((d) => d.data()['status'] == 'Perdido').length;
-            int totalAdocao =
-                docs.where((d) => d.data()['status'] == 'Para Adoção').length;
-
-            return ListView(
+            return ListView.builder(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 100),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFAA61), Color(0xFFE97832)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomLeft,
-                    ),
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFE97832).withValues(alpha: 0.18),
-                        blurRadius: 22,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Text(
-                                    'COMUNIDADE SOS PET',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.1,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                const Text(
-                                  'Todo pet merece\num final feliz.',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 25,
-                                    height: 1.12,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: const Icon(
-                              Icons.pets_rounded,
-                              color: Colors.white,
-                              size: 27,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Ajude a encontrar, adotar e cuidar de quem precisa.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          _summaryChip(
-                              '$totalPerdidos perdidos', Colors.red.shade50),
-                          const SizedBox(width: 10),
-                          _summaryChip(
-                              '$totalAdocao para adoção', Colors.green.shade50),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-                if (docs.isNotEmpty) ...[
-                  const Padding(
-                    padding: EdgeInsets.only(left: 2, bottom: 12),
-                    child: Text(
-                      'Destaques da comunidade',
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF28231F),
-                      ),
-                    ),
-                  ),
-                  _buildPetCarousel(docs),
-                  const SizedBox(height: 24),
-                ],
-                Padding(
-                  padding: const EdgeInsets.only(left: 2, bottom: 14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Perto de você',
-                            style: TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4,
-                              color: Color(0xFF28231F),
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Pets da nossa comunidade',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF85796F),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (docs.isNotEmpty)
-                        Text(
-                          '${docs.length} ${docs.length == 1 ? 'pet' : 'pets'}',
-                          style: const TextStyle(
-                            color: Color(0xFF9A6A4D),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (docs.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 36,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFF1E8DF)),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 62,
-                          height: 62,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF1E5),
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: const Icon(
-                            Icons.pets_rounded,
-                            color: Color(0xFFE97832),
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        const Text(
-                          'Ainda não há pets por aqui',
-                          style: TextStyle(
-                            color: Color(0xFF39312B),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Seja o primeiro a compartilhar um anúncio com a comunidade.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF85796F),
-                            height: 1.4,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ...docs.map((doc) {
-                  final petData = doc.data();
-                  final String docId = doc.id;
-                  final pet = PetModel.fromMap(docId, petData);
-
-                  // Verifica se o usuário atual é o dono deste pet
-                  final bool isDono =
+              itemCount: docs.length + 1,
+              itemBuilder: (context, index) {
+                if (index > 0) {
+                  final doc = docs[index - 1];
+                  final pet = PetModel.fromMap(doc.id, doc.data());
+                  final isDono =
                       _firebaseUid != null && _firebaseUid == pet.donoUid;
+                  return _buildPetCard(pet, doc.id, isDono);
+                }
 
-                  return _buildPetCard(pet, docId, isDono);
-                }),
-              ],
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFAA61), Color(0xFFE97832)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomLeft,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFFE97832).withValues(alpha: 0.18),
+                            blurRadius: 22,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Text(
+                                        'COMUNIDADE SOS PET',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Text(
+                                      'Todo pet merece\num final feliz.',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 25,
+                                        height: 1.12,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Icon(
+                                  Icons.pets_rounded,
+                                  color: Colors.white,
+                                  size: 27,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Ajude a encontrar, adotar e cuidar de quem precisa.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              _summaryChip(
+                                '$totalPerdidos perdidos',
+                                const Color(0xFFE65A53),
+                              ),
+                              const SizedBox(width: 10),
+                              _summaryChip(
+                                '$totalAdocao para adoção',
+                                const Color(0xFF4E9A68),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    if (docs.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.only(left: 2, bottom: 12),
+                        child: Text(
+                          'Destaques da comunidade',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF28231F),
+                          ),
+                        ),
+                      ),
+                      _buildPetCarousel(docs),
+                      const SizedBox(height: 24),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2, bottom: 14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Perto de você',
+                                style: TextStyle(
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.4,
+                                  color: Color(0xFF28231F),
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                'Pets da nossa comunidade',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF85796F),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (docs.isNotEmpty)
+                            Text(
+                              '${docs.length} ${docs.length == 1 ? 'pet' : 'pets'}',
+                              style: const TextStyle(
+                                color: Color(0xFF9A6A4D),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (docs.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 36,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: const Color(0xFFF1E8DF)),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 62,
+                              height: 62,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF1E5),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: const Icon(
+                                Icons.pets_rounded,
+                                color: Color(0xFFE97832),
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Ainda não há pets por aqui',
+                              style: TextStyle(
+                                color: Color(0xFF39312B),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Seja o primeiro a compartilhar um anúncio com a comunidade.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF85796F),
+                                height: 1.4,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
             );
           },
         ),
@@ -549,211 +557,217 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPetCarousel(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
-    final destaqueDocs = docs.take(6).toList();
-    final currentIndex = _carouselIndex.clamp(0, destaqueDocs.length - 1);
-    final doc = destaqueDocs[currentIndex];
-    final pet = PetModel.fromMap(doc.id, doc.data());
-    final statusColor = pet.status == 'Perdido' ? Colors.red : Colors.green;
+    return StatefulBuilder(
+      builder: (context, setCarouselState) {
+        final destaqueDocs = docs.take(6).toList();
+        final currentIndex = _carouselIndex.clamp(0, destaqueDocs.length - 1);
+        final doc = destaqueDocs[currentIndex];
+        final pet = PetModel.fromMap(doc.id, doc.data());
+        final statusColor = pet.status == 'Perdido' ? Colors.red : Colors.green;
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 230,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  onHorizontalDragEnd: (details) {
-                    final velocity = details.primaryVelocity ?? 0;
-                    if (velocity < 0 &&
-                        currentIndex < destaqueDocs.length - 1) {
-                      _showCarouselPage(
-                        currentIndex + 1,
-                        destaqueDocs.length,
-                      );
-                    } else if (velocity > 0 && currentIndex > 0) {
-                      _showCarouselPage(currentIndex - 1, destaqueDocs.length);
-                    }
-                  },
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: InkWell(
-                      key: ValueKey(doc.id),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PetDetailScreen(pet: pet),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(22),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: const Color(0xFFF1E8DF),
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (pet.foto.isNotEmpty)
-                              kIsWeb || pet.foto.startsWith('http')
-                                  ? Image.network(
-                                      pet.foto,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          _imagePlaceholder(),
-                                    )
-                                  : Image.file(
-                                      File(pet.foto),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          _imagePlaceholder(),
-                                    )
-                            else
-                              _imagePlaceholder(),
-                            const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black54,
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              left: 14,
-                              right: 14,
-                              bottom: 14,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 9,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: statusColor,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      pet.status,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 7),
-                                  Text(
-                                    pet.nome,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  Text(
-                                    pet.local,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (destaqueDocs.length > 1) ...[
-                Positioned(
-                  left: 8,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: _carouselArrow(
-                      tooltip: 'Animal anterior',
-                      icon: Icons.chevron_left_rounded,
-                      enabled: currentIndex > 0,
-                      onPressed: () => _showCarouselPage(
-                        currentIndex - 1,
-                        destaqueDocs.length,
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: _carouselArrow(
-                      tooltip: 'Próximo animal',
-                      icon: Icons.chevron_right_rounded,
-                      enabled: currentIndex < destaqueDocs.length - 1,
-                      onPressed: () => _showCarouselPage(
-                        currentIndex + 1,
-                        destaqueDocs.length,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        void showCarouselPage(int index) {
+          if (index < 0 ||
+              index >= destaqueDocs.length ||
+              index == _carouselIndex) {
+            return;
+          }
+          setCarouselState(() => _carouselIndex = index);
+        }
+
+        return Column(
           children: [
-            ...List.generate(destaqueDocs.length, (index) {
-              final selected = index == currentIndex;
-              return Semantics(
-                button: true,
-                label: 'Ir para animal ${index + 1}',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _showCarouselPage(index, destaqueDocs.length),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: selected ? 18 : 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? const Color(0xFFE97832)
-                            : const Color(0xFFD9CFC5),
-                        borderRadius: BorderRadius.circular(20),
+            SizedBox(
+              height: 230,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        final velocity = details.primaryVelocity ?? 0;
+                        if (velocity < 0 &&
+                            currentIndex < destaqueDocs.length - 1) {
+                          showCarouselPage(currentIndex + 1);
+                        } else if (velocity > 0 && currentIndex > 0) {
+                          showCarouselPage(currentIndex - 1);
+                        }
+                      },
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: InkWell(
+                          key: ValueKey(doc.id),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PetDetailScreen(pet: pet),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(22),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: const Color(0xFFF1E8DF),
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (pet.foto.isNotEmpty)
+                                  kIsWeb || pet.foto.startsWith('http')
+                                      ? Image.network(
+                                          pet.foto,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              _imagePlaceholder(),
+                                        )
+                                      : Image.file(
+                                          File(pet.foto),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              _imagePlaceholder(),
+                                        )
+                                else
+                                  _imagePlaceholder(),
+                                const DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.black54,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 14,
+                                  right: 14,
+                                  bottom: 14,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 9,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: statusColor,
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          pet.status,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 7),
+                                      Text(
+                                        pet.nome,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        pet.local,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
+                  if (destaqueDocs.length > 1) ...[
+                    Positioned(
+                      left: 8,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: _carouselArrow(
+                          tooltip: 'Animal anterior',
+                          icon: Icons.chevron_left_rounded,
+                          enabled: currentIndex > 0,
+                          onPressed: () => showCarouselPage(currentIndex - 1),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 8,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: _carouselArrow(
+                          tooltip: 'Próximo animal',
+                          icon: Icons.chevron_right_rounded,
+                          enabled: currentIndex < destaqueDocs.length - 1,
+                          onPressed: () => showCarouselPage(currentIndex + 1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ...List.generate(destaqueDocs.length, (index) {
+                  final selected = index == currentIndex;
+                  return Semantics(
+                    button: true,
+                    label: 'Ir para animal ${index + 1}',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => showCarouselPage(index),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 3, vertical: 8),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: selected ? 18 : 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFFE97832)
+                                : const Color(0xFFD9CFC5),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -777,12 +791,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showCarouselPage(int index, int itemCount) {
-    if (index < 0 || index >= itemCount || index == _carouselIndex) return;
-    setState(() => _carouselIndex = index);
-  }
-
-  Widget _summaryChip(String text, Color bgColor) {
+  Widget _summaryChip(String text, Color dotColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -796,9 +805,7 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 7,
             height: 7,
             decoration: BoxDecoration(
-              color: bgColor == Colors.red.shade50
-                  ? const Color(0xFFE65A53)
-                  : const Color(0xFF4E9A68),
+              color: dotColor,
               shape: BoxShape.circle,
             ),
           ),

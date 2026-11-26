@@ -6,12 +6,33 @@ import '../models/user_model.dart';
 import '../services/chat_service.dart';
 import 'chat_screen.dart';
 
-class ConversationsScreen extends StatelessWidget {
+class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
 
   @override
+  State<ConversationsScreen> createState() => _ConversationsScreenState();
+}
+
+class _ConversationsScreenState extends State<ConversationsScreen> {
+  late final User? _currentUser;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _conversationsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = FirebaseAuth.instance.currentUser;
+    final uid = _currentUser?.uid;
+    if (uid != null) {
+      _conversationsStream = FirebaseFirestore.instance
+          .collection('chats')
+          .where('participantIds', arrayContains: uid)
+          .snapshots();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
@@ -24,10 +45,7 @@ class ConversationsScreen extends StatelessWidget {
           ? const Center(
               child: Text('Entre na sua conta para ver as conversas.'))
           : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .where('participantIds', arrayContains: currentUser.uid)
-                  .snapshots(),
+              stream: _conversationsStream!,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(
@@ -41,9 +59,13 @@ class ConversationsScreen extends StatelessWidget {
                 }
 
                 final conversations =
-                    List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
-                  snapshot.data?.docs ?? [],
-                )..sort((a, b) {
+                    (snapshot.data?.docs ?? []).where((conversation) {
+                  final hiddenFor =
+                      (conversation.data()['hiddenFor'] as List<dynamic>? ?? [])
+                          .whereType<String>();
+                  return !hiddenFor.contains(currentUser.uid);
+                }).toList()
+                      ..sort((a, b) {
                         final aDate = _dateFrom(a.data()['lastMessageAt']);
                         final bDate = _dateFrom(b.data()['lastMessageAt']);
                         return (bDate ?? DateTime.fromMillisecondsSinceEpoch(0))
@@ -51,12 +73,6 @@ class ConversationsScreen extends StatelessWidget {
                           aDate ?? DateTime.fromMillisecondsSinceEpoch(0),
                         );
                       });
-                conversations.removeWhere((conversation) {
-                  final hiddenFor =
-                      (conversation.data()['hiddenFor'] as List<dynamic>? ?? [])
-                          .whereType<String>();
-                  return hiddenFor.contains(currentUser.uid);
-                });
 
                 if (conversations.isEmpty) {
                   return Center(

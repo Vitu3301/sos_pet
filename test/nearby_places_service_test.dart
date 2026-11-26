@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -107,6 +109,94 @@ void main() {
             (error) => error.message,
             'message',
             contains('código 502'),
+          ),
+        ),
+      );
+    });
+
+    test('sorts results by distance and removes duplicate OpenStreetMap ids',
+        () async {
+      final service = NearbyPlacesService(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'elements': [
+                {
+                  'type': 'node',
+                  'id': 1,
+                  'lat': -8.06,
+                  'lon': -34.9,
+                  'tags': {'name': 'Mais distante'},
+                },
+                {
+                  'type': 'node',
+                  'id': 2,
+                  'lat': -8.051,
+                  'lon': -34.9,
+                  'tags': {'name': 'Mais próxima'},
+                },
+                {
+                  'type': 'node',
+                  'id': 2,
+                  'lat': -8.07,
+                  'lon': -34.9,
+                  'tags': {'name': 'Duplicada'},
+                },
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(service.dispose);
+
+      final places = await service.findNear(origin);
+
+      expect(places.map((place) => place.name), [
+        'Mais próxima',
+        'Mais distante',
+      ]);
+      expect(places.map((place) => place.id), ['node/2', 'node/1']);
+    });
+
+    test('does not retry a non-temporary response error', () async {
+      final requestedHosts = <String>[];
+      final service = NearbyPlacesService(
+        client: MockClient((request) async {
+          requestedHosts.add(request.url.host);
+          return http.Response('bad request', 400);
+        }),
+      );
+      addTearDown(service.dispose);
+
+      await expectLater(
+        service.findNear(origin),
+        throwsA(
+          isA<NearbyPlacesException>().having(
+            (error) => error.message,
+            'message',
+            contains('código 400'),
+          ),
+        ),
+      );
+      expect(requestedHosts, ['overpass-api.de']);
+    });
+
+    test('rejects a successful response with an invalid payload', () async {
+      final service = NearbyPlacesService(
+        client: MockClient(
+          (_) async => http.Response('{"elements":{}}', 200),
+        ),
+      );
+      addTearDown(service.dispose);
+
+      await expectLater(
+        service.findNear(origin),
+        throwsA(
+          isA<NearbyPlacesException>().having(
+            (error) => error.message,
+            'message',
+            contains('dados inválidos'),
           ),
         ),
       );
