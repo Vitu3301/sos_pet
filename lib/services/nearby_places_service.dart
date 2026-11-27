@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum NearbyPlaceType { adoption, shelter }
 
@@ -27,6 +28,38 @@ class NearbyPlace {
   final String? address;
   final String? phone;
   final String? website;
+
+  Map<String, dynamic> toCache() => {
+        'id': id,
+        'name': name,
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'type': type.name,
+        'address': address,
+        'phone': phone,
+        'website': website,
+      };
+
+  static NearbyPlace? fromCache(Map<String, dynamic> map) {
+    final latitude = map['latitude'];
+    final longitude = map['longitude'];
+    if (latitude is! num || longitude is! num) return null;
+
+    final type = map['type'] == 'adoption'
+        ? NearbyPlaceType.adoption
+        : NearbyPlaceType.shelter;
+
+    return NearbyPlace(
+      id: map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? 'Abrigo de animais',
+      position: LatLng(latitude.toDouble(), longitude.toDouble()),
+      type: type,
+      distanceKm: 0,
+      address: map['address']?.toString(),
+      phone: map['phone']?.toString(),
+      website: map['website']?.toString(),
+    );
+  }
 
   static NearbyPlace? fromOverpass(
     Map<String, dynamic> element,
@@ -116,13 +149,29 @@ class NearbyPlacesException implements Exception {
   String toString() => message;
 }
 
+class _NearbyPlacesCache {
+  const _NearbyPlacesCache(this.timestamp, this.places);
+
+  final DateTime timestamp;
+  final List<NearbyPlace> places;
+}
+
 class NearbyPlacesService {
   NearbyPlacesService({http.Client? client})
       : _client = client ?? http.Client();
 
   final http.Client _client;
+  static const Duration _freshCacheDuration = Duration(hours: 24);
+  static const Duration _staleCacheDuration = Duration(days: 7);
 
   Future<List<NearbyPlace>> findNear(LatLng origin) async {
+    final cacheKey = _cacheKey(origin);
+    final cached = await _readCache(cacheKey);
+    if (cached != null &&
+        DateTime.now().difference(cached.timestamp) < _freshCacheDuration) {
+      return _placesForOrigin(cached.places, origin);
+    }
+
     final latitude = origin.latitude;
     final longitude = origin.longitude;
     final query = '''
@@ -166,9 +215,7 @@ out center tags;
             response.statusCode == 504) {
           continue;
         }
-        throw NearbyPlacesException(
-          'O serviço de mapas respondeu com o código ${response.statusCode}.',
-        );
+        continue;
       }
 
       final decoded = jsonDecode(response.body);
@@ -186,7 +233,13 @@ out center tags;
       }
       places.sort(
           (first, second) => first.distanceKm.compareTo(second.distanceKm));
+      await _writeCache(cacheKey, places);
       return places;
+    }
+
+    if (cached != null &&
+        DateTime.now().difference(cached.timestamp) < _staleCacheDuration) {
+      return _placesForOrigin(cached.places, origin);
     }
 
     if (lastStatusCode != null) {
@@ -201,6 +254,77 @@ out center tags;
           : 'Não foi possível conectar aos serviços de mapas. '
               'Verifique sua conexão e tente novamente.',
     );
+  }
+
+  String _cacheKey(LatLng origin) {
+    final latGrid = (origin.latitude / 0.1).round();
+    final lonGrid = (origin.longitude / 0.1).round();
+    return 'nearby_places_${latGrid}_$lonGrid';
+  }
+
+  Future<_NearbyPlacesCache?> _readCache(String cacheKey) async {
+    final preferences = await SharedPreferences.getInstance();
+    final raw = preferences.getString(cacheKey);
+    if (raw == null) return null;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final timestamp =
+          DateTime.tryParse(decoded['timestamp']?.toString() ?? '');
+      final rawPlaces = decoded['places'];
+      if (timestamp == null || rawPlaces is! List) return null;
+
+      final places = <NearbyPlace>[];
+      for (final rawPlace in rawPlaces) {
+        if (rawPlace is! Map) continue;
+        final place =
+            NearbyPlace.fromCache(Map<String, dynamic>.from(rawPlace));
+        if (place != null) places.add(place);
+      }
+      return _NearbyPlacesCache(timestamp, places);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _writeCache(
+    String cacheKey,
+    List<NearbyPlace> places,
+  ) async {
+    final preferences = await SharedPreferences.getInstance();
+    final payload = {
+      'timestamp': DateTime.now().toIso8601String(),
+      'places': places.map((place) => place.toCache()).toList(),
+    };
+    await preferences.setString(cacheKey, jsonEncode(payload));
+  }
+
+  List<NearbyPlace> _placesForOrigin(
+    List<NearbyPlace> places,
+    LatLng origin,
+  ) {
+    final recalculated = places
+        .map(
+          (place) => NearbyPlace(
+            id: place.id,
+            name: place.name,
+            position: place.position,
+            type: place.type,
+            distanceKm: NearbyPlace._distanceInKilometers(
+              origin.latitude,
+              origin.longitude,
+              place.position.latitude,
+              place.position.longitude,
+            ),
+            address: place.address,
+            phone: place.phone,
+            website: place.website,
+          ),
+        )
+        .toList()
+      ..sort((first, second) => first.distanceKm.compareTo(second.distanceKm));
+    return recalculated;
   }
 
   void dispose() => _client.close();
